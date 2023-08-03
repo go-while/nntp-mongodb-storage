@@ -547,6 +547,8 @@ forever:
 				log.Printf("Quit MongoReaderWorker %d", wid)
 				break forever
 			}
+			log.Printf("MongoReaderWorker %d process readreq", wid)
+
 			ctx, cancel = extendContextTimeout(ctx, cancel, mongoTimeout)
 			// Read articles for the given msgidhashes.
 			articles, err := readArticlesByMessageIDHashes(ctx, collection, readreq.Msgidhashes)
@@ -559,13 +561,10 @@ forever:
 			if readreq.RetChan != nil {
 				log.Printf("passing %d/%d read articles response to readreq.RetChan", len_got_arts, len_request)
 				readreq.RetChan <- articles // MongoReadReqReturn{ Articles: articles }
+			} else {
+				log.Printf("WARN got %d/%d read articles readreq.RetChan=nil", len_got_arts, len_request)
 			}
-
 			// Do something with the articles, e.g., handle them or send them to another channel.
-
-		case <-ctx.Done():
-			log.Printf("MongoReaderWorker %d context canceled", wid)
-			return
 		}
 	}
 	DisConnectMongoDB(who, ctx, client)
