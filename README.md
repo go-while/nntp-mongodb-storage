@@ -30,38 +30,38 @@ func Load_MongoDB(mongoURI, dbName, collectionName string, timeout time.Duration
 
 # Load_MongoDB Parameters
 ```
-mongoURI: A string representing the MongoDB connection URI. It contains the necessary authentication details and the address of the MongoDB server.
-mongoDatabaseName: A string representing the name of the MongoDB database where the articles will be stored and retrieved from.
-mongoCollection: A string representing the name of the collection within the database where the articles will be stored.
-mongoTimeout: An int64 value that defines the duration in milliseconds after which a connection attempt to the MongoDB server will time out if not successful.
-delWorker: An int representing the number of worker goroutines to handle article deletions.
-delQueue: An int representing the size of the delete queue. It specifies how many delete requests can be buffered before the send operation blocks.
-insWorker: An int representing the number of worker goroutines to handle article insertions.
-insQueue: An int representing the size of the insert queue. It specifies how many article insertion requests can be buffered before the send operation blocks.
-getWorker: An int representing the number of worker goroutines to handle article reads.
-getQueue: An int representing the size of the read queue. It specifies how many read requests can be buffered before the send operation blocks.
-testAfterInsert: A bool flag indicating whether to perform a test after an article insertion. The specific test details are not provided in the code.
+mongoURI (string): A string representing the MongoDB connection URI. It should include the necessary authentication details and the address of the MongoDB server.
+mongoDatabaseName (string): A string representing the name of the MongoDB database where the articles will be stored and retrieved from.
+mongoCollection (string): A string representing the name of the collection within the database where the articles will be stored.
+mongoTimeout (int64): A duration in milliseconds that defines the timeout for a connection attempt to the MongoDB server. If the connection is not successful within this duration, it will time out.
+delWorker (int): The number of worker goroutines to handle article deletions. It determines the level of concurrency for deletion operations.
+delQueue (int): The size of the delete queue. It specifies how many delete requests can be buffered before the send operation blocks. If delQueue is 0 or negative, a default value will be used.
+insWorker (int): The number of worker goroutines to handle article insertions. It determines the level of concurrency for insertion operations.
+insQueue (int): The size of the insert queue. It specifies how many article insertion requests can be buffered before the send operation blocks. If insQueue is 0 or negative, a default value will be used.
+getWorker (int): The number of worker goroutines to handle article reads. It determines the level of concurrency for read operations.
+getQueue (int): The size of the read queue. It specifies how many read requests can be buffered before the send operation blocks. If getQueue is 0 or negative, a default value will be used.
+testAfterInsert (bool): A flag indicating whether to perform a test after an article insertion. The specific test details are not provided in the function, and the flag can be used for application-specific testing purposes.
 ```
 
 
 # How Load_MongoDB works
 MongoDB Connection: The Load_MongoDB function establishes a connection to the MongoDB server specified in the mongoURI.
 
-It uses the dbName to select or create the target database for article storage and retrieval.
+Database and Collections: It uses the dbName to select or create the target database for article storage and retrieval. Within the selected database, the function creates or retrieves the MongoDB collections for storing articles.
 
-Collections: Within the selected database, the function creates or retrieves the MongoDB collections for storing articles.
+Initialization: The function initializes the provided delWorker, insWorker, and getWorker instances to handle article deletions, insertions, and read operations, respectively.
 
-Initialization: The function initializes the provided delWorker and insWorker instances to handle article deletions and insertions, respectively.
+Start Workers: The function starts the provided delWorker, insWorker, and getWorker goroutines to process article deletions, insertions, and reading operations concurrently.
 
-Start Workers: The function starts the provided delWorker and insWorker goroutines to process article deletions and insertions concurrently.
+Queue Setup: The function sets up the delQueue, insQueue, and getQueue, which are channels used for communication between the main program and the worker goroutines.
 
-Queue Setup: The function sets up the delQueue and insQueue, which are channels used for communication between the main program and the worker goroutines.
+Article Deletions: Articles to be deleted will be enqueued in the delQueue with their corresponding hashes, which will be processed by the delete worker goroutines.
 
-Articles to be deleted will be enqueued in the delQueue with their corresponding hashes, while articles to be inserted will be enqueued in the insQueue as MongoArticle instances.
+Article Insertions: Articles to be inserted will be enqueued in the insQueue as MongoArticle instances, which will be processed by the insert worker goroutines. The testAfterInsert flag controls whether a test is performed after each article insertion. Unfortunately, the specific details of this test are not provided in the code.
 
-Test After Insertion: The testAfterInsert flag controls whether a test is performed after each article insertion.
+Read (Get) Operations: Read requests for articles will be enqueued in the getQueue, which will be processed by the reader worker goroutines. This allows concurrent reading of articles from the MongoDB collections.
 
-Unfortunately, the specific details of this test are not provided in the code.
+You can adjust the number of worker goroutines and queue sizes based on your application's requirements and the available resources.
 
 # Usage Load_MongoDB
 The Load_MongoDB function is typically called at the start of the program to set up the MongoDB configuration and prepare the worker goroutines for article storage and deletion.
