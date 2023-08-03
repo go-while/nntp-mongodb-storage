@@ -30,15 +30,17 @@ func Load_MongoDB(mongoURI, dbName, collectionName string, timeout time.Duration
 
 # Load_MongoDB Parameters
 ```
-mongoURI: A string representing the MongoDB connection URI. It should include the necessary authentication details and the address of the MongoDB server.
-dbName: A string representing the name of the MongoDB database where the articles will be stored and retrieved from.
-collectionName: A string representing the name of the collection within the database where the articles will be stored.
-timeout: A time.Duration value that defines the duration after which a connection attempt to the MongoDB server will time out if not successful.
-delWorker: A pointer to a MongoDeleteWorker instance that will be used for handling article deletions.
-delQueue: A channel of type chan string representing the queue where article hashes to be deleted will be sent.
-insWorker: A pointer to a MongoInsertWorker instance that will be used for handling article insertions.
-insQueue: A channel of type chan MongoArticle representing the queue where articles to be inserted will be sent.
-testAfterInsert: A boolean flag indicating whether to perform a test after an article insertion. The specific test details are not provided in the code.
+mongoURI: A string representing the MongoDB connection URI. It contains the necessary authentication details and the address of the MongoDB server.
+mongoDatabaseName: A string representing the name of the MongoDB database where the articles will be stored and retrieved from.
+mongoCollection: A string representing the name of the collection within the database where the articles will be stored.
+mongoTimeout: An int64 value that defines the duration in milliseconds after which a connection attempt to the MongoDB server will time out if not successful.
+delWorker: An int representing the number of worker goroutines to handle article deletions.
+delQueue: An int representing the size of the delete queue. It specifies how many delete requests can be buffered before the send operation blocks.
+insWorker: An int representing the number of worker goroutines to handle article insertions.
+insQueue: An int representing the size of the insert queue. It specifies how many article insertion requests can be buffered before the send operation blocks.
+getWorker: An int representing the number of worker goroutines to handle article reads.
+getQueue: An int representing the size of the read queue. It specifies how many read requests can be buffered before the send operation blocks.
+testAfterInsert: A bool flag indicating whether to perform a test after an article insertion. The specific test details are not provided in the code.
 ```
 
 
