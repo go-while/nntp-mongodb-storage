@@ -45,6 +45,7 @@ testAfterInsert (bool): A flag indicating whether to perform a test after an art
 
 
 # How Load_MongoDB works
+```
 MongoDB Connection: The Load_MongoDB function establishes a connection to the MongoDB server specified in the mongoURI.
 
 Database and Collections: It uses the dbName to select or create the target database for article storage and retrieval. Within the selected database, the function creates or retrieves the MongoDB collections for storing articles.
@@ -62,6 +63,7 @@ Article Insertions: Articles to be inserted will be enqueued in the insQueue as 
 Read (Get) Operations: Read requests for articles will be enqueued in the getQueue, which will be processed by the reader worker goroutines. This allows concurrent reading of articles from the MongoDB collections.
 
 You can adjust the number of worker goroutines and queue sizes based on your application's requirements and the available resources.
+```
 
 # Usage Load_MongoDB
 The Load_MongoDB function is typically called at the start of the program to set up the MongoDB configuration and prepare the worker goroutines for article storage and deletion.
