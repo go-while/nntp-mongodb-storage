@@ -166,7 +166,7 @@ type MongoStorageConfig struct {
 type MongoArticle struct {
 	MessageIDHash *string `bson:"_id"`
 	MessageID     *string `bson:"msgid"`
-	//Newsgroups    []string `bson:"newsgroups"`
+	Newsgroups    []string `bson:"newsgroups"`
 	Head     []byte `bson:"head"`
 	Headsize int    `bson:"hs"`
 	Body     []byte `bson:"body"`
@@ -221,6 +221,7 @@ type MongoDeleteRequest struct {
 // For instance, cfg.TestAfterInsert = true.
 func GetDefaultMongoStorageConfig() MongoStorageConfig {
 	cfg := MongoStorageConfig{
+
 		// Default MongoDB connection URI
 		MongoURI: DefaultMongoURI,
 
@@ -311,32 +312,7 @@ func SetDefaultsIfZero(cfg *MongoStorageConfig) {
 } // end func SetDefaultsIfZero
 
 // Load_MongoDB initializes the MongoDB storage backend with the specified configuration parameters.
-// It takes the following parameters:
-// - MongoURI: The MongoDB connection string. Replace 'your-mongodb-uri' with your actual MongoDB URI.
-// - MongoDatabaseName: The name of the MongoDB database to connect to. If empty, the default value is used.
-// - MongoCollection: The name of the MongoDB collection to access. If empty, the default value is used.
-// - MongoTimeout: The timeout value in seconds for the connection. If 0, the default value is used.
-// - DelWorker: The number of MongoDB delete workers to create. If 0 or less, the default value is used.
-// - DelQueue: The size of the delete queue for holding messageIDHashes to be deleted. If 0 or less, the default value is used.
-// - DelBatch: The number of Msgidhashes a DeleteWorker will cache before deleting to batch into one process. If 0 or less, the default value is used.
-// - InsWorker: The number of MongoDB insert workers to create. If 0 or less, the default value is used.
-// - InsQueue: The size of the insert queue for holding MongoArticle objects to be inserted. If 0 or less, the default value is used.
-// - InsBatch: The number of articles an InsertWorker will cache before inserting to batch into one process. If 0 or less, the default value is used.
-// - GetWorker: The number of MongoDB reader workers to create. If 0 or less, the default value is used.
-// - GetQueue: The size of the read queue for holding MongoReadRequest objects to be processed. If 0 or less, the default value is used.
-// - TestAfterInsert: A boolean indicating whether to perform tests after inserting articles.
-//
-// The function initializes channels for delete, insert, and read operations based on the provided queue sizes.
-// It creates multiple worker goroutines for delete, insert, and read operations based on the provided worker counts.
-// Each worker goroutine operates independently and handles operations concurrently.
-// The worker goroutines handle delete, insert, and read requests from their respective queues.
-// The delete workers execute delete operations in batches using the MongoDB bulk delete feature.
-// The insert workers execute insert operations in batches using the MongoDB bulk insert feature.
-// The reader workers process read requests, fetch articles from MongoDB based on the provided messageIDHashes,
-// and return the articles through the provided channels.
-//
-// Note: The function starts the worker goroutines in separate background routines. The caller of this function should manage
-// the main program's lifecycle accordingly to ensure that these background goroutines terminate gracefully when needed.
+// The function starts the worker goroutines in separate background routines.
 // function written by AI.
 func Load_MongoDB(cfg *MongoStorageConfig) {
 	//func Load_MongoDB(MongoURI string, MongoDatabaseName string, MongoCollection string, MongoTimeout int64, DelWorker int, DelQueue int, DelBatch int, InsWorker int, InsQueue int, InsBatch int, GetQueue int, GetWorker int, TestAfterInsert bool) {
@@ -371,18 +347,6 @@ func Load_MongoDB(cfg *MongoStorageConfig) {
 // ConnectMongoDB is a function responsible for establishing a connection to the MongoDB server and accessing a specific collection.
 // It takes the following parameters:
 // - who: A string representing the name or identifier of the calling function or worker.
-// - MongoURI: The MongoDB connection string. Replace 'your-mongodb-uri' with your actual MongoDB URI.
-// - MongoDatabaseName: The name of the MongoDB database to connect to. If empty, the default value is used.
-// - MongoCollection: The name of the MongoDB collection to access. If empty, the default value is used.
-// - MongoTimeout: The timeout value in seconds for the connection. If 0, the default value is used.
-//
-// The function connects to the MongoDB server using the provided connection URI and establishes a client connection.
-// It sets a timeout for the connection to prevent hanging connections.
-// If the connection is successful, it returns a context, a cancel function to close the connection,
-// a pointer to the MongoDB client, and a pointer to the MongoDB collection.
-// The caller should use the provided context and cancel function to manage the connection and clean up resources after use.
-// If an error occurs during the connection process, it logs the error and returns the error to the caller.
-// The caller of this function should handle any returned error appropriately.
 // function written by AI.
 func ConnectMongoDB(who string, cfg *MongoStorageConfig) (context.Context, context.CancelFunc, *mongo.Client, *mongo.Collection, error) {
 
@@ -411,15 +375,6 @@ func ConnectMongoDB(who string, cfg *MongoStorageConfig) (context.Context, conte
 } // end func ConnectMongoDB
 
 // DisConnectMongoDB is a function responsible for disconnecting from the MongoDB server.
-// It takes the following parameters:
-// - who: A string representing the name or identifier of the calling function or worker.
-// - ctx: The context used to manage the connection and perform the disconnect operation.
-// - client: A pointer to the MongoDB client instance that needs to be disconnected.
-//
-// The function attempts to disconnect from the MongoDB server using the provided client and context.
-// If the disconnection is successful, it logs the disconnection message.
-// If an error occurs during disconnection, it logs the error and returns the error.
-// The caller of this function should handle any returned error appropriately.
 // function written by AI.
 func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) error {
 	err := client.Disconnect(ctx)
@@ -434,24 +389,10 @@ func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) er
 // MongoWorker_Insert is a goroutine function responsible for processing incoming insert requests from the 'Mongo_Insert_queue'.
 // It inserts articles into a MongoDB collection based on the articles provided in the 'Mongo_Insert_queue'.
 // The function continuously listens for insert requests and processes them until the 'Mongo_Insert_queue' is closed.
-//
-// The function takes the following parameters:
-// - wid: An integer representing the worker ID for identification purposes.
-// - MongoURI: The MongoDB URI used to connect to the MongoDB server.
-// - MongoDatabaseName: The name of the MongoDB database where the articles are to be stored.
-// - MongoCollection: The name of the MongoDB collection where the articles are to be stored.
-// - MongoTimeout: The timeout value (in seconds) for the MongoDB operations.
-// - TestAfterInsert: A boolean flag to indicate whether to perform article existence checks after insertions (for testing purposes).
-//
-// The MongoWorker_Insert initializes a MongoDB client and collection and continuously waits for incoming insert requests.
-// It accumulates the articles to be inserted until the number of articles reaches the limit set by 'cap(Mongo_Insert_queue)'.
-// Alternatively, it will perform the insert operation if a timeout occurs (after 5 seconds) or if the 'Mongo_Insert_queue' is closed.
-//
-// The function uses exponential backoff with jitter to retry connecting to the MongoDB server in case of connection errors.
+// It accumulates the articles to be inserted until the number of articles reaches the limit set by cfg.InsBatch.
 // Once the 'Mongo_Insert_queue' is closed, the function performs disconnection from the MongoDB server and terminates.
 //
 // If the 'TestAfterInsert' flag is set to true, the function will perform article existence checks after each insertion.
-// This check verifies whether the article with the given MessageIDHash exists in the collection after the insertion.
 // The check logs the results of the existence test for each article.
 // function partly written by AI.
 func MongoWorker_Insert(wid int, cfg *MongoStorageConfig) {
@@ -555,22 +496,7 @@ forever:
 // MongoWorker_Delete is a goroutine function responsible for processing incoming delete requests from the 'Mongo_Delete_queue'.
 // It deletes articles from a MongoDB collection based on the given MessageIDHashes provided in the 'Mongo_Delete_queue'.
 // The function continuously listens for delete requests and processes them until the 'Mongo_Delete_queue' is closed.
-//
-// The function takes the following parameters:
-// - wid: An integer representing the worker ID for identification purposes.
-// - MongoURI: The MongoDB URI used to connect to the MongoDB server.
-// - MongoDatabaseName: The name of the MongoDB database where the articles are stored.
-// - MongoCollection: The name of the MongoDB collection where the articles are stored.
-// - MongoTimeout: The timeout value (in seconds) for the MongoDB operations.
-//
-// The MongoWorker_Delete initializes a MongoDB client and collection, and continuously waits for incoming delete requests.
-// It accumulates the MessageIDHashes to be deleted until the number of hashes reaches the limit set by 'cap(Mongo_Delete_queue)'.
-// Alternatively, it will perform the delete operation if a timeout occurs (after 5 seconds) or if the 'Mongo_Delete_queue' is closed.
-//
-// The function uses exponential backoff with jitter to retry connecting to the MongoDB server in case of connection errors.
-// Once the 'Mongo_Delete_queue' is closed, the function performs disconnection from the MongoDB server and terminates.
-//
-// Note: If the 'limit' is set to 1, the function will delete articles one by one, processing individual delete requests from the queue.
+// Note: If cfg.DelBatch is set to 1, the function will delete articles one by one, processing individual delete requests from the queue.
 // Otherwise, it will delete articles in bulk based on the accumulated MessageIDHashes.
 // function partly written by AI.
 func MongoWorker_Delete(wid int, cfg *MongoStorageConfig) {
@@ -674,22 +600,6 @@ forever:
 // MongoWorker_Reader is a goroutine function responsible for processing incoming read requests from the 'Mongo_Reader_queue'.
 // It reads articles from a MongoDB collection based on the given MessageIDHashes provided in the 'readreq' parameter.
 // The function continuously listens for read requests and processes them until the 'Mongo_Reader_queue' is closed.
-//
-// The function takes the following parameters:
-// - wid: An integer representing the worker ID for identification purposes.
-// - MongoURI: The MongoDB URI used to connect to the MongoDB server.
-// - MongoDatabaseName: The name of the MongoDB database where the articles are stored.
-// - MongoCollection: The name of the MongoDB collection where the articles are stored.
-// - MongoTimeout: The timeout value (in seconds) for the MongoDB operations.
-//
-// The MongoWorker_Reader initializes a MongoDB client and collection, and continuously waits for incoming read requests.
-// When a read request is received, it reads articles from the collection for the specified MessageIDHashes using the 'readArticlesByMessageIDHashes' function.
-// If any error occurs during the retrieval, the function logs the error and continues to the next read request.
-//
-// The retrieved articles are then passed to the corresponding return channel in the read request ('readreq.RetChan') if it is provided.
-// The return channel allows the caller to receive the articles asynchronously.
-//
-// The function uses exponential backoff with jitter to retry connecting to the MongoDB server in case of connection errors.
 // Once the 'Mongo_Reader_queue' is closed, the function performs disconnection from the MongoDB server and terminates.
 // function partly written by AI.
 func MongoWorker_Reader(wid int, cfg *MongoStorageConfig) {
@@ -761,18 +671,6 @@ forever:
 } // end func MongoWorker_Reader
 
 // MongoInsertOneArticle is a function that inserts a single article into a MongoDB collection.
-//
-// It takes a MongoDB context ('ctx'), a reference to the MongoDB collection ('collection'),
-// and a pointer to the 'MongoArticle' object ('article') that represents the article to be inserted.
-//
-// The function uses the MongoDB 'InsertOne' operation to insert a single document into the collection.
-// It passes the 'article' pointer to the 'InsertOne' method, and MongoDB handles the insertion based on the data in the 'MongoArticle' object.
-//
-// If the insertion is successful, the function returns 'nil' error.
-// If an error occurs during the insertion, the function logs the error and returns the error instance to the caller.
-//
-// Note: The function assumes that the 'MongoArticle' struct is used to represent articles and contains the necessary data for insertion.
-// Ensure that the 'article' pointer points to a valid 'MongoArticle' object with all the required fields populated before calling this function.
 // function written by AI.
 func MongoInsertOneArticle(ctx context.Context, collection *mongo.Collection, article *MongoArticle) error {
 	_, err := collection.InsertOne(ctx, article)
@@ -783,22 +681,6 @@ func MongoInsertOneArticle(ctx context.Context, collection *mongo.Collection, ar
 } // end func MongoInsertOneArticle
 
 // MongoInsertManyArticles is a function that performs a bulk insert of multiple articles into a MongoDB collection.
-//
-// It takes a MongoDB context ('ctx') and a reference to the MongoDB collection ('collection') where the articles will be inserted.
-// The articles to be inserted are provided as a slice of 'MongoArticle' objects ('articles').
-//
-// The function uses the MongoDB 'InsertMany' operation to insert multiple documents in a single call to the database.
-// It constructs an array of 'interface{}' containing the articles to be inserted, and sets the 'ordered' option to 'false' to allow
-// non-sequential insertion of documents, even if some of them have duplicate '_id' values.
-// If a duplicate '_id' (message ID hash) is encountered during the insert operation, MongoDB will continue inserting other documents,
-// and duplicates will be ignored. The first occurrence of each unique '_id' will be inserted, and subsequent occurrences will be skipped.
-//
-// After the insertion operation is completed, the function checks if the number of successfully inserted documents matches the number of articles.
-// If all articles are successfully inserted, it returns 'true', indicating a successful bulk insert. Otherwise, it returns 'false'.
-//
-// Note: The function assumes that the 'MongoArticle' struct is used to represent articles and contains the necessary data for insertion.
-// The MongoDB 'InsertMany' operation may impose certain limitations on the number of documents that can be inserted in a single batch,
-// so ensure that the number of articles in the 'articles' slice is within acceptable limits to avoid potential issues.
 // function written by AI.
 func MongoInsertManyArticles(ctx context.Context, collection *mongo.Collection, articles []*MongoArticle) error {
 	insert_articles := []interface{}{}
@@ -841,9 +723,7 @@ func MongoInsertManyArticles(ctx context.Context, collection *mongo.Collection, 
 	return nil
 } // end func MongoInsertManyArticles
 
-// MongoDeleteManyArticles is responsible for deleting multiple articles from the MongoDB collection
-// based on a given set of MessageIDHashes. It performs a bulk delete operation efficiently to remove
-// articles in batches, minimizing database load and improving performance.
+// MongoDeleteManyArticles is responsible for deleting multiple articles from the MongoDB collection based on a given set of MessageIDHashes.
 // function written by AI.
 func MongoDeleteManyArticles(ctx context.Context, collection *mongo.Collection, msgidhashes []string) bool {
 	// Build the filter for DeleteMany
@@ -865,18 +745,6 @@ func MongoDeleteManyArticles(ctx context.Context, collection *mongo.Collection, 
 } // end func MongoDeleteManyArticles
 
 // extendContextTimeout extends the deadline of a given context by canceling the previous
-// context and creating a new one with an updated timeout. This function is useful for
-// ensuring that long-running operations do not exceed a specified timeout.
-//
-// Parameters:
-//   - ctx: The original context that needs its deadline extended.
-//   - cancel: The cancel function associated with the original context.
-//   - MongoTimeout: The new timeout value in seconds for the updated context.
-//
-// Returns:
-//   - context.Context: The updated context with an extended deadline.
-//   - context.CancelFunc: The cancel function associated with the updated context.
-//
 // function written by AI.
 func extendContextTimeout(ctx context.Context, cancel context.CancelFunc, MongoTimeout int64) (context.Context, context.CancelFunc) {
 	//log.Printf("extendContextTimeout")
@@ -887,6 +755,8 @@ func extendContextTimeout(ctx context.Context, cancel context.CancelFunc, MongoT
 	return ctx, cancel
 } // end func extendContextTimeout
 
+// deleteArticlesByMessageIDHash deletes an article from the MongoDB collection by its MessageIDHash.
+// function written by AI.
 func deleteArticlesByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash string) error {
 	// Filter to find the articles with the given MessageIDHash.
 	filter := bson.M{"_id": messageIDHash}
@@ -900,9 +770,6 @@ func deleteArticlesByMessageIDHash(ctx context.Context, collection *mongo.Collec
 } // end func deleteArticlesByMessageIDHash
 
 // retrieveArticleByMessageIDHash retrieves an article from the MongoDB collection by its MessageIDHash.
-// It takes the MongoDB context "ctx", the MongoDB collection "collection", and the MessageIDHash of the article to retrieve.
-// It returns a pointer to the retrieved MongoArticle object and an error if any.
-// If the article with the given MessageIDHash does not exist, it returns nil and nil error.
 // function written by AI.
 func retrieveArticleByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash string) (*MongoArticle, error) {
 	// Filter to find the article with the given MessageIDHash.
@@ -915,6 +782,7 @@ func retrieveArticleByMessageIDHash(ctx context.Context, collection *mongo.Colle
 	if result.Err() != nil {
 		// Check if the error is due to "no documents in result".
 		if result.Err() == mongo.ErrNoDocuments {
+			log.Printf("Info retrieveArticleByMessageIDHash not found hash=%s", messageIDHash)
 			return nil, nil
 		}
 		// Return other errors as they indicate a problem with the query.
@@ -924,19 +792,14 @@ func retrieveArticleByMessageIDHash(ctx context.Context, collection *mongo.Colle
 	// Decode the article from the BSON representation to a MongoArticle object.
 	var article MongoArticle
 	if err := result.Decode(&article); err != nil {
+		log.Printf("Error retrieveArticleByMessageIDHash result.Decode err='%v'", err)
 		return nil, err
 	}
 
 	return &article, nil
 } // end func retrieveArticleByMessageIDHash
 
-// readArticlesByMessageIDHashes is a function that retrieves articles from the MongoDB collection based on a list of
-// MessageIDHashes. It takes a MongoDB context 'ctx', a 'collection' pointer representing the MongoDB collection
-// to query, and a slice of 'msgidhashes' containing the MessageIDHashes to look for in the database.
-// The function filters the collection using the provided MessageIDHashes and retrieves the matching articles.
-// It returns a slice of pointers to MongoArticle objects containing the retrieved articles and their corresponding
-// 'found' status, indicating whether each article was found in the database. If an article is not found in the database,
-// a new empty MongoArticle object with the specified MessageIDHash is added to the result slice.
+// readArticlesByMessageIDHashes is a function that retrieves articles from the MongoDB collection based on a list of MessageIDHashes.
 // function written by AI.
 func readArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Collection, msgidhashes []*string) ([]*MongoArticle, error) {
 	// Filter to find the articles with the given MessageIDHashes.
@@ -945,6 +808,7 @@ func readArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Collec
 	// Find the articles in the collection.
 	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
+		log.Printf("Error readArticlesByMessageIDHashes coll.Find err='%v'", err)
 		return nil, err
 	}
 	defer cursor.Close(ctx)
@@ -971,6 +835,7 @@ func readArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Collec
 		}
 	}
 	if err := cursor.Err(); err != nil {
+		log.Printf("Error readArticlesByMessageIDHashes cursor.Err='%v'", err)
 		return nil, err
 	}
 
@@ -978,7 +843,6 @@ func readArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Collec
 } // end func readArticlesByMessageIDHashes
 
 // sliceContains checks if a given target string exists in the provided slice of strings.
-// It returns true if the target string is found in the slice, otherwise, it returns false.
 // function written by AI.
 func sliceContains(slice []string, target string) bool {
 	for _, item := range slice {
@@ -990,10 +854,6 @@ func sliceContains(slice []string, target string) bool {
 } // end func sliceContains
 
 // isPStringInSlice checks if a target string pointer exists in a slice of string pointers.
-// It iterates through the slice and compares each element to the target pointer.
-// If the target and any element in the slice are not nil and have the same string value,
-// the function returns true indicating that the target is present in the slice.
-// Otherwise, it returns false.
 // function written by AI.
 func isPStringInSlice(slice []*string, target *string) bool {
 	for _, s := range slice {
@@ -1004,14 +864,7 @@ func isPStringInSlice(slice []*string, target *string) bool {
 	return false
 } // end func isPStringInSlice
 
-// RetrieveHeadByMessageIDHash is a function that retrieves the "Head" data of an article from the MongoDB collection
-// based on its MessageIDHash. It takes a MongoDB context 'ctx', a 'collection' pointer representing the MongoDB collection
-// to query, and the 'messageIDHash' string that uniquely identifies the article.
-//
-// The function filters the collection using the provided MessageIDHash and retrieves the corresponding article's "Head" field,
-// which contains the article's header information. If the article is found, it returns the "Head" data as a byte slice.
-// If the article does not exist in the collection, the function returns nil and no error.
-// If any other errors occur during the query or decoding process, they will be returned as errors.
+// RetrieveHeadByMessageIDHash is a function that retrieves the "Head" data of an article based on its MessageIDHash.
 // function written by AI.
 func RetrieveHeadByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash string) ([]byte, error) {
 	// Filter to find the article with the given "messageIDHash".
@@ -1042,14 +895,7 @@ func RetrieveHeadByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 	return article.Head, nil
 } // end func retrieveHeadByMessageIDHash
 
-// RetrieveBodyByMessageIDHash is a function that retrieves the "Body" data of an article from the MongoDB collection
-// based on its MessageIDHash. It takes a MongoDB context 'ctx', a 'collection' pointer representing the MongoDB collection
-// to query, and the 'messageIDHash' string that uniquely identifies the article.
-//
-// The function filters the collection using the provided MessageIDHash and retrieves the corresponding article's "Body" field,
-// which contains the article's content. If the article is found, it returns the "Body" data as a byte slice.
-// If the article does not exist in the collection, the function returns nil and no error.
-// If any other errors occur during the query or decoding process, they will be returned as errors.
+// RetrieveBodyByMessageIDHash is a function that retrieves the "Body" data of an article  based on its MessageIDHash.
 // function written by AI.
 func RetrieveBodyByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash string) ([]byte, error) {
 	// Filter to find the article with the given "messageIDHash".
@@ -1080,14 +926,7 @@ func RetrieveBodyByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 	return article.Body, nil
 } // end func retrieveBodyByMessageIDHash
 
-// RetrieveBodyByMessageIDHash is a function that retrieves the "Body" data of an article from the MongoDB collection
-// based on its MessageIDHash. It takes a MongoDB context 'ctx', a 'collection' pointer representing the MongoDB collection
-// to query, and the 'messageIDHash' string that uniquely identifies the article.
-//
-// The function filters the collection using the provided MessageIDHash and retrieves the corresponding article's "Body" field,
-// which contains the article's content. If the article is found, it returns the "Body" data as a byte slice.
-// If the article does not exist in the collection, the function returns nil and no error.
-// If any other errors occur during the query or decoding process, they will be returned as errors.
+// RetrieveBodyByMessageIDHash is a function that retrieves the "Body" data of an article based on its MessageIDHash.
 // function written by AI.
 func checkIfArticleExistsByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash *string) (bool, error) {
 	// Filter to find the articles with the given MessageIDHash.
@@ -1117,13 +956,6 @@ func EncodeToGob(data []byte) ([]byte, error) {
 
 // CompressData is a function that takes an input byte slice 'input' and an integer 'algo' representing the compression algorithm.
 // It compresses the input data using the specified compression algorithm and returns the compressed data as a new byte slice.
-//
-// The 'algo' parameter specifies the compression algorithm to be used, and it should be one of the constants 'GZIP_enc' or 'ZLIB_enc'.
-// If the provided 'algo' value is not one of the supported compression algorithms, the function returns an error with an appropriate message.
-//
-// The function utilizes the 'gzip' or 'zlib' packages from the Go standard library to perform compression.
-// It creates a new writer for the specified algorithm, writes the input data, flushes the writer, and finally closes it to obtain the compressed data.
-// The compressed data is returned as a new byte slice.
 // function written by AI.
 func CompressData(input []byte, algo int) ([]byte, error) {
 	switch algo {
@@ -1156,13 +988,6 @@ func CompressData(input []byte, algo int) ([]byte, error) {
 
 // DecompressData is a function that takes an input byte slice 'input' and an integer 'algo' representing the compression algorithm.
 // It decompresses the input data using the specified compression algorithm and returns the decompressed data as a new byte slice.
-//
-// The 'algo' parameter specifies the compression algorithm used to compress the data, and it should be one of the constants 'GZIP_enc' or 'ZLIB_enc'.
-// If the provided 'algo' value is not one of the supported compression algorithms, the function returns an error with an appropriate message.
-//
-// The function utilizes the 'gzip' or 'zlib' packages from the Go standard library to perform decompression.
-// It creates a new reader for the specified algorithm, reads the input data from the provided byte slice, and then closes the reader to release resources.
-// The decompressed data is returned as a new byte slice.
 // function written by AI.
 func DecompressData(input []byte, algo int) ([]byte, error) {
 	switch algo {
@@ -1187,21 +1012,6 @@ func DecompressData(input []byte, algo int) ([]byte, error) {
 
 // calculateExponentialBackoff is a function that takes an integer 'attempt' representing the current attempt number for a retry operation.
 // It calculates the backoff duration to be used before the next retry based on exponential backoff with jitter.
-//
-// The function uses exponential backoff with jitter to increase the backoff duration for each retry attempt.
-// The 'attempt' parameter specifies the current attempt number, starting from 1 for the first attempt.
-//
-// It uses a base backoff duration ('backoffBase') of 100 milliseconds, and a backoff factor ('backoffFactor') of 2.
-// The backoff duration is calculated as 'backoffFactor' raised to the power of 'attempt-1' multiplied by the 'backoffBase'.
-// This results in a gradually increasing backoff duration for each attempt.
-//
-// The function also applies a maximum backoff duration ('maxbackoff') of 30,000 milliseconds (30 seconds) to prevent excessively long delays.
-// If the calculated backoff duration exceeds the maximum, it is capped at the maximum value.
-//
-// To add jitter and prevent all clients from retrying simultaneously, the function introduces some random jitter by adding a random duration
-// (up to half of the 'backoffBase') to the calculated backoff duration.
-//
-// The final backoff duration is returned as a 'time.Duration' value, representing the total time to wait before the next retry attempt.
 // function written by AI.
 func calculateExponentialBackoff(attempt int) time.Duration {
 	maxbackoff := time.Duration(30000)
@@ -1219,16 +1029,6 @@ func calculateExponentialBackoff(attempt int) time.Duration {
 } // end func calculateExponentialBackoff
 
 // MongoWorker_UpDN_Random periodically sends random up/down (true/false) signals to the worker channels.
-// This function generates two random integers: arandA and arandB.
-// It then interprets the values of arandA and arandB to determine which worker channel to send the signal to.
-// The function uses a switch statement to decide which worker channel to use based on the random values.
-// If arandA is 1, it sets sendbool to true; otherwise, it remains false.
-// Depending on the value of arandB, the function sends the sendbool value to one of four worker channels:
-// - If arandB is 0, it sends the signal to the "reader" worker channel.
-// - If arandB is 1, it sends the signal to the "delete" worker channel.
-// - If arandB is 2, it sends the signal to the "insert" worker channel.
-// - If arandB is 3, it sends the signal to the "StopAll" worker channel, which will stop all worker goroutines if sendbool is true.
-// The function then repeats this process in an infinite loop with a N second sleep between iterations.
 // The purpose of this function is to simulate random up/down requests to control the worker
 // function not written by AI.
 // ./mongodbtest -randomUpDN -test-num 0
@@ -1267,50 +1067,11 @@ func MongoWorker_UpDN_Random() {
 	}
 } // end func MongoWorker_UpDN_Random
 
-// iStop_Worker stops the worker of the specified type and returns the worker's maximum ID.
-// Parameters:
-// - wType: A string indicating the type of worker to stop.
-// - Possible values are "reader", "delete", or "insert".
-//
-// Return Value:
-// The function returns an integer representing the maximum ID of the worker.
-//
-// Explanation:
 // The iStop_Worker function is responsible for stopping a specific type of worker (reader, delete, or insert)
-// and retrieving the worker's maximum ID before stopping it. The function uses channels to communicate with
-// the worker goroutines and control their termination.
-// The function uses a switch statement to identify the type of worker to stop. For each type, it reads the current
-// maximum worker ID from the corresponding channel. After retrieving the ID, it immediately writes it back to the
-// channel, effectively "parking" the value again, so other parts of the code can still access the ID.
-// This mechanism allows the caller to stop a specific worker safely and get the worker's maximum ID for further
-// processing if needed.
-//
-// Example Usage:
-// maxID := iStop_Worker("reader")
-// if wid > maxID { return // stop Worker }
-//
-// iStop_Worker stops the worker of the specified type and returns the worker's maximum ID.
-// Parameters:
-// - wType: A string indicating the type of worker to stop. Possible values are "reader", "delete", or "insert".
-//
-// Return Value:
-// The function returns an integer representing the maximum ID of the worker.
-//
-// Explanation:
-// iStop_Worker is responsible for stopping a specific type of worker (reader, delete, or insert)
-// The function uses channels to communicate indirectly with the worker goroutines to control their termination.
-// Based on the provided wType, the function reads the current maximum worker ID from the corresponding channel.
-// After retrieving the ID, it immediately writes it back to the channel, effectively "parking" the value again
-// to allow other parts of the code to access the ID safely.
-// This mechanism ensures the caller can stop a specific worker and obtain the worker's maximum ID for further processing if needed.
-//
-// Example Usage:
-// maxID := iStop_Worker("reader")
-//
-//	if wid > maxID {
-//	    return // stop Worker
-//	}
-//
+// The function uses channels to communicate with the worker goroutines and control their termination.
+// The function uses a switch statement to identify the type of worker to stop.
+// For each type, it reads the current maximum worker ID from the corresponding channel.
+// After retrieving the ID, it immediately writes it back to the channel, effectively "parking" the value again, so other parts of the code can still access the ID.
 // function not written by AI.
 func iStop_Worker(wType string) int {
 	var maxwid int
@@ -1330,25 +1091,7 @@ func iStop_Worker(wType string) int {
 	return maxwid
 } // fund end iStop_Worker
 
-// updn_Set updates the worker count of the specified type and starts or stops worker goroutines accordingly.
-// Parameters:
-// - wType: A string indicating the type of worker to update. Possible values are "reader", "delete", or "insert".
-// - maxwid: An integer representing the new worker count.
-// - DelBatch: An integer representing the batch size for delete workers.
-// - InsBatch: An integer representing the batch size for insert workers.
-// - MongoURI: The MongoDB connection string.
-// - MongoDatabaseName: The name of the MongoDB database to connect to.
-// - MongoCollection: The name of the MongoDB collection to access.
-// - MongoTimeout: The timeout value in seconds for the MongoDB connection.
-// - TestAfterInsert: A boolean indicating whether to perform tests after inserting articles.
-//
-// Explanation:
-// updn_Set is used by MongoWorker_UpDn_Scaler to update the count of a specific type of worker (reader, delete, or insert).
-// Based on the provided wType, the function reads the current worker count from the corresponding channel and then
-// writes the new worker count (maxwid) back to the channel.
-// If the new worker count (maxwid) is greater than the current worker count (oldval), the function starts new worker
-// goroutines for the specified type (reader, delete, or insert) up to the new worker count.
-// If the new worker count is less than or equal to the current worker count, the function stops the extra worker goroutines.
+// updn_Set internally updates the worker count of the specified type and starts worker goroutines accordingly.
 // function not written by AI.
 func updn_Set(wType string, maxwid int, cfg *MongoStorageConfig) {
 	var oldval int
@@ -1389,11 +1132,6 @@ func updn_Set(wType string, maxwid int, cfg *MongoStorageConfig) {
 } // end func updn_Set
 
 // MongoWorker_UpDn_Scaler runs in the background and listens on channels for up/down requests to start/stop workers.
-// Parameters:
-// - GetWorker: An integer representing the initial number of reader workers to start with.
-// - DelWorker: An integer representing the initial number of delete workers to start with.
-// - InsWorker: An integer representing the initial number of insert workers to start with.
-//
 // Explanation:
 // MongoWorker_UpDn_Scaler is responsible for managing the scaling of worker goroutines based on up/down requests.
 // It listens to UpDn_*_Worker_chan channels to receive requests for starting or stopping specific types of workers.
@@ -1409,12 +1147,13 @@ func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 	stop_delete_worker_chan <- cfg.DelWorker
 	stop_insert_worker_chan <- cfg.InsWorker
 	atimeout := time.Duration(time.Second * 5)
+
 	// The anonymous goroutine periodically checks the UpDn_StopAll_Worker_chan channel for messages.
 	// If a "true" value is received, it sends "false" to all UpDn_*_Worker channels
 	//   (UpDn_Reader_Worker_chan, UpDn_Delete_Worker_chan, and UpDn_Insert_Worker_chan)
 	// to signal the worker goroutines to stop gracefully.
 	// If a "false" value is received, no action is taken.
-	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
+	// The goroutine also logs a message every N seconds to indicate that it is alive and running.
 	// This functionality allows dynamically scaling the number of worker goroutines based on received up/down requests
 	// while keeping track of their status and allowing controlled termination.
 	go func(getWorker int, delWorker int, insWorker int) {
@@ -1452,7 +1191,7 @@ func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 	// If a "true" value is received, it increments the GetWorker variable to increase the number of reader worker goroutines.
 	// If a "false" value is received, it decrements GetWorker to decrease the number of reader worker goroutines.
 	// After processing the message, the goroutine calls the updn_Set function to update the reader worker count with the new value (GetWorker).
-	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
+	// The goroutine also logs a message every N seconds to indicate that it is alive and running.
 	// The time.Sleep function is used to slightly delay the execution to avoid consuming excessive resources.
 	// This functionality allows dynamically scaling the number of reader worker goroutines based on received up/down requests
 	// and keeping track of their status while ensuring controlled termination and worker count adjustment.
@@ -1483,7 +1222,7 @@ func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 	// If a "true" value is received, it increments the DelWorker variable to increase the number of delete worker goroutines.
 	// If a "false" value is received, it decrements DelWorker to decrease the number of delete worker goroutines.
 	// After processing the message, the goroutine calls the updn_Set function to update the delete worker count with the new value (DelWorker).
-	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
+	// The goroutine also logs a message every N seconds to indicate that it is alive and running.
 	// The time.Sleep function is used to slightly delay the execution to avoid consuming excessive resources.
 	//This functionality allows dynamically scaling the number of delete worker goroutines based on received up/down requests
 	// and keeping track of their status while ensuring controlled termination and worker count adjustment.
@@ -1514,7 +1253,7 @@ func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 	// If a "true" value is received, it increments the InsWorker variable to increase the number of insert worker goroutines.
 	// If a "false" value is received, it decrements InsWorker to decrease the number of insert worker goroutines.
 	// After processing the message, the goroutine calls the updn_Set function to update the insert worker count with the new value (InsWorker).
-	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
+	// The goroutine also logs a message every N seconds to indicate that it is alive and running.
 	// The time.Sleep function is used to slightly delay the execution to avoid consuming excessive resources.
 	// This functionality allows dynamically scaling the number of insert worker goroutines based on received up/down requests
 	// and keeping track of their status while ensuring controlled termination and worker count adjustment.
@@ -1543,4 +1282,4 @@ func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 
 } // end func MongoWorker_UpDn_Scaler
 
-// EOF mongodb_storage.go
+// EOF mongodb_storage.go : package mongostorage
