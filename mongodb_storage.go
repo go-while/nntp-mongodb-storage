@@ -21,8 +21,8 @@ import (
 
 // CONSTANTS comments written by AI.
 
-// DefaultMongoUri is the default MongoDB connection string used when no URI is provided.
-const DefaultMongoUri string = "mongodb://localhost:27017"
+// DefaultMongoURI is the default MongoDB connection string used when no URI is provided.
+const DefaultMongoURI string = "mongodb://localhost:27017"
 
 // DefaultMongoDatabaseName is the default name of the MongoDB database used when no database name is provided.
 const DefaultMongoDatabaseName string = "nntp"
@@ -89,282 +89,68 @@ var (
 	stop_insert_worker_chan = make(chan int, 1)
 ) // end var
 
-// iStop_Worker stops the worker of the specified type and returns the worker's maximum ID.
-// Parameters:
-// - wType: A string indicating the type of worker to stop.
-// - Possible values are "reader", "delete", or "insert".
-//
-// Return Value:
-// The function returns an integer representing the maximum ID of the worker.
-//
-// Explanation:
-// The iStop_Worker function is responsible for stopping a specific type of worker (reader, delete, or insert)
-// and retrieving the worker's maximum ID before stopping it. The function uses channels to communicate with
-// the worker goroutines and control their termination.
-// The function uses a switch statement to identify the type of worker to stop. For each type, it reads the current
-// maximum worker ID from the corresponding channel. After retrieving the ID, it immediately writes it back to the
-// channel, effectively "parking" the value again, so other parts of the code can still access the ID.
-// This mechanism allows the caller to stop a specific worker safely and get the worker's maximum ID for further
-// processing if needed.
-//
-// Example Usage:
-// maxID := iStop_Worker("reader")
-// if wid > maxID { return // stop Worker }
-//
-// iStop_Worker stops the worker of the specified type and returns the worker's maximum ID.
-// Parameters:
-// - wType: A string indicating the type of worker to stop. Possible values are "reader", "delete", or "insert".
-//
-// Return Value:
-// The function returns an integer representing the maximum ID of the worker.
-//
-// Explanation:
-// iStop_Worker is responsible for stopping a specific type of worker (reader, delete, or insert)
-// The function uses channels to communicate indirectly with the worker goroutines to control their termination.
-// Based on the provided wType, the function reads the current maximum worker ID from the corresponding channel.
-// After retrieving the ID, it immediately writes it back to the channel, effectively "parking" the value again
-// to allow other parts of the code to access the ID safely.
-// This mechanism ensures the caller can stop a specific worker and obtain the worker's maximum ID for further processing if needed.
-//
-// Example Usage:
-// maxID := iStop_Worker("reader")
-//
-//	if wid > maxID {
-//	    return // stop Worker
-//	}
-//
-// function not written by AI.
-func iStop_Worker(wType string) int {
-	var maxwid int
-	switch wType {
-	case "reader":
-		maxwid = <-stop_reader_worker_chan // read value
-		stop_reader_worker_chan <- maxwid  // park value again
-	case "delete":
-		maxwid = <-stop_delete_worker_chan // read value
-		stop_delete_worker_chan <- maxwid  // park value again
-	case "insert":
-		maxwid = <-stop_insert_worker_chan // read value
-		stop_insert_worker_chan <- maxwid  // park value again
-	default:
-		log.Printf("Error iStop_Worker unknown Wtype=%s", wType)
-	} // end switch wType
-	return maxwid
-} // fund end iStop_Worker
+// MongoStorageConfig represents the parameters for configuring MongoDB and worker goroutines.
+// You can adjust the number of worker goroutines and queue sizes based on your application's requirements and available resources.
+type MongoStorageConfig struct {
+	// MongoURI is a string representing the MongoDB connection URI.
+	// It should include the necessary authentication details and the address of the MongoDB server.
+	MongoURI string
 
-// updn_Set updates the worker count of the specified type and starts or stops worker goroutines accordingly.
-// Parameters:
-// - wType: A string indicating the type of worker to update. Possible values are "reader", "delete", or "insert".
-// - maxwid: An integer representing the new worker count.
-// - delBatch: An integer representing the batch size for delete workers.
-// - insBatch: An integer representing the batch size for insert workers.
-// - mongoUri: The MongoDB connection string.
-// - mongoDatabaseName: The name of the MongoDB database to connect to.
-// - mongoCollection: The name of the MongoDB collection to access.
-// - mongoTimeout: The timeout value in seconds for the MongoDB connection.
-// - testAfterInsert: A boolean indicating whether to perform tests after inserting articles.
-//
-// Explanation:
-// updn_Set is used by MongoWorker_UpDn_Scaler to update the count of a specific type of worker (reader, delete, or insert).
-// Based on the provided wType, the function reads the current worker count from the corresponding channel and then
-// writes the new worker count (maxwid) back to the channel.
-// If the new worker count (maxwid) is greater than the current worker count (oldval), the function starts new worker
-// goroutines for the specified type (reader, delete, or insert) up to the new worker count.
-// If the new worker count is less than or equal to the current worker count, the function stops the extra worker goroutines.
-// function not written by AI.
-func updn_Set(wType string, maxwid int, delBatch int, insBatch int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64, testAfterInsert bool) {
-	var oldval int
-	switch wType {
-	case "reader":
-		oldval = <-stop_reader_worker_chan // read old value
-		stop_reader_worker_chan <- maxwid  // set new value
-	case "delete":
-		oldval = <-stop_delete_worker_chan // read old value
-		stop_delete_worker_chan <- maxwid  // set new value
-	case "insert":
-		oldval = <-stop_insert_worker_chan // read old value
-		stop_insert_worker_chan <- maxwid  // set new value
-	default:
-		log.Printf("Error updn_Set unknown Wtype=%s", wType)
-	} // end switch wType
+	// MongoDatabaseName is a string representing the name of the MongoDB database where the articles will be stored and retrieved from.
+	MongoDatabaseName string
 
-	if maxwid > oldval {
-		// start new worker routines for wType
-		switch wType {
-		case "reader":
-			for i := oldval + 1; i <= maxwid; i++ {
-				go MongoWorker_Reader(i, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
-			}
-		case "delete":
-			for i := oldval + 1; i <= maxwid; i++ {
-				go MongoWorker_Delete(i, delBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
-			}
-		case "insert":
-			for i := oldval + 1; i <= maxwid; i++ {
-				go MongoWorker_Insert(i, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
-			}
-		default:
-			log.Printf("Error updn_Set unknown Wtype=%s", wType)
-		} // end switch wType
-	}
-	log.Printf("$$ updn_Set wType=%s oldval=%d maxwid=%d", wType, oldval, maxwid)
-} // end func updn_Set
+	// MongoCollection is a string representing the name of the collection within the database where the articles will be stored.
+	MongoCollection string
 
-// MongoWorker_UpDn_Scaler runs in the background and listens on channels for up/down requests to start/stop workers.
-// Parameters:
-// - getWorker: An integer representing the initial number of reader workers to start with.
-// - delWorker: An integer representing the initial number of delete workers to start with.
-// - insWorker: An integer representing the initial number of insert workers to start with.
-//
-// Explanation:
-// MongoWorker_UpDn_Scaler is responsible for managing the scaling of worker goroutines based on up/down requests.
-// It listens to UpDn_*_Worker_chan channels to receive requests for starting or stopping specific types of workers.
-// The function uses updn_Set to update the worker counts accordingly, which effectively starts or stops worker goroutines.
-// This mechanism allows the application to dynamically adjust the number of worker goroutines based on the workload
-// or other factors.
-// Note: The function runs in the background and continues to process requests as they arrive.
-//
-// function not written by AI.
-func MongoWorker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBatch int, insBatch int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64, testAfterInsert bool) { // <-- needs load inital values
-	// load initial values into channels
-	stop_reader_worker_chan <- getWorker
-	stop_delete_worker_chan <- delWorker
-	stop_insert_worker_chan <- insWorker
-	atimeout := time.Duration(time.Second * 5)
+	// MongoTimeout is an int64 value defining the timeout for a connection attempt to the MongoDB server.
+	// If the connection is not successful within this duration, it will time out.
+	MongoTimeout int64
 
-	// The anonymous goroutine periodically checks the UpDn_StopAll_Worker_chan channel for messages.
-	// If a "true" value is received, it sends "false" to all UpDn_*_Worker channels
-	//   (UpDn_Reader_Worker_chan, UpDn_Delete_Worker_chan, and UpDn_Insert_Worker_chan)
-	// to signal the worker goroutines to stop gracefully.
-	// If a "false" value is received, no action is taken.
-	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
-	// This functionality allows dynamically scaling the number of worker goroutines based on received up/down requests
-	// while keeping track of their status and allowing controlled termination.
-	go func() {
-		timeout := time.After(atimeout)
-		for {
-			select {
-			case <-timeout:
-				timeout = time.After(atimeout)
-				//log.Printf("UpDn_StopAll_Worker_chan alive")
+	// DelWorker is an integer specifying the number of worker goroutines to handle article deletions.
+	// It determines the level of concurrency for deletion operations.
+	// More DelWorker values can improve the speed at which articles are deleted from the database.
+	DelWorker int
 
-			case retbool := <-UpDn_StopAll_Worker_chan:
-				switch retbool {
-				case true:
-					// pass a false to all UpDn_*_Worker channels to stop them
-					for i := 1; i <= getWorker; i++ {
-						UpDn_Reader_Worker_chan <- false
-					}
-					for i := 1; i <= delWorker; i++ {
-						UpDn_Delete_Worker_chan <- false
-					}
-					for i := 1; i <= insWorker; i++ {
-						UpDn_Insert_Worker_chan <- false
-					}
-				case false:
-					// pass here, will not do anything
-					// to stop all workers
-					//   pass a single true to UpDn_StopAll_Worker_chan
-				} // end switch retbool
-			} // end select
-		} // end for
-	}()
-	time.Sleep(time.Second / 1000)
+	// DelQueue is an integer specifying the size of the delete queue.
+	// It specifies how many delete requests can be buffered before the send operation blocks.
+	// If DelQueue is 0 or negative, a default value will be used.
+	// The DelQueue parameter sets the maximum number of article deletion requests that can be buffered before the worker goroutines start processing them.
+	DelQueue int
 
-	// The anonymous goroutine continuously listens to the UpDn_Reader_Worker_chan channel for messages.
-	// If a "true" value is received, it increments the getWorker variable to increase the number of reader worker goroutines.
-	// If a "false" value is received, it decrements getWorker to decrease the number of reader worker goroutines.
-	// After processing the message, the goroutine calls the updn_Set function to update the reader worker count with the new value (getWorker).
-	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
-	// The time.Sleep function is used to slightly delay the execution to avoid consuming excessive resources.
-	// This functionality allows dynamically scaling the number of reader worker goroutines based on received up/down requests
-	// and keeping track of their status while ensuring controlled termination and worker count adjustment.
-	go func(getWorker int, wType string) {
-		timeout := time.After(atimeout)
-		for {
-			select {
-			case <-timeout:
-				timeout = time.After(atimeout)
-				//log.Printf("UpDn_Reader_Worker_chan alive")
+	// InsWorker is an integer specifying the number of worker goroutines to handle article insertions.
+	// It determines the level of concurrency for insertion operations.
+	// This parameter controls the concurrency for insertion operations, allowing multiple articles to be inserted simultaneously.
+	InsWorker int
 
-			case retbool := <-UpDn_Reader_Worker_chan:
-				switch retbool {
-				case true:
-					getWorker++
-				case false:
-					if getWorker > 0 {
-						getWorker--
-					}
-				} // end switch retbool
-				updn_Set(wType, getWorker, -1, -1, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
-			} // end select
-		} // end for
-	}(getWorker, "reader")
-	time.Sleep(time.Second / 1000)
+	// InsQueue is an integer specifying the size of the insert queue.
+	// It specifies how many article insertion requests can be buffered before the send operation blocks.
+	// If InsQueue is 0 or negative, a default value will be used.
+	// The InsQueue parameter specifies the maximum number of article insertion requests that can be buffered in the queue before the worker goroutines process them.
+	// If the number of pending insertions exceeds this limit, the send operation on the Mongo_Insert_queue channel will block.
+	InsQueue int
 
-	// The anonymous goroutine continuously listens to the UpDn_Delete_Worker_chan channel for messages.
-	// If a "true" value is received, it increments the delWorker variable to increase the number of delete worker goroutines.
-	// If a "false" value is received, it decrements delWorker to decrease the number of delete worker goroutines.
-	// After processing the message, the goroutine calls the updn_Set function to update the delete worker count with the new value (delWorker).
-	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
-	// The time.Sleep function is used to slightly delay the execution to avoid consuming excessive resources.
-	//This functionality allows dynamically scaling the number of delete worker goroutines based on received up/down requests
-	// and keeping track of their status while ensuring controlled termination and worker count adjustment.
-	go func(delWorker int, wType string) {
-		timeout := time.After(atimeout)
-		for {
-			select {
-			case <-timeout:
-				timeout = time.After(atimeout)
-				//log.Printf("UpDn_Delete_Worker_chan alive")
+	// GetWorker is an integer specifying the number of worker goroutines to handle article reads.
+	// It determines the level of concurrency for read operations.
+	// This parameter controls the level of concurrency for read operations, enabling multiple read requests to be processed concurrently.
+	GetWorker int
 
-			case retbool := <-UpDn_Delete_Worker_chan:
-				switch retbool {
-				case true:
-					delWorker++
-				case false:
-					if delWorker > 0 {
-						delWorker--
-					}
-				} // end switch retbool
-				updn_Set(wType, delWorker, delBatch, -1, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
-			} // end select
-		} // end for
-	}(delWorker, "delete")
-	time.Sleep(time.Second / 1000)
+	// GetQueue is an integer specifying the size of the read queue.
+	// It specifies how many read requests can be buffered before the send operation blocks.
+	// If GetQueue is 0 or negative, a default value will be used.
+	// The GetQueue parameter defines the maximum length of the read request queue.
+	// When the number of read requests exceeds this limit, the send operation on the Mongo_Reader_queue channel will block until space becomes available.
+	GetQueue int
 
-	// The anonymous goroutine continuously listens to the UpDn_Insert_Worker_chan channel for messages.
-	// If a "true" value is received, it increments the insWorker variable to increase the number of insert worker goroutines.
-	// If a "false" value is received, it decrements insWorker to decrease the number of insert worker goroutines.
-	// After processing the message, the goroutine calls the updn_Set function to update the insert worker count with the new value (insWorker).
-	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
-	// The time.Sleep function is used to slightly delay the execution to avoid consuming excessive resources.
-	// This functionality allows dynamically scaling the number of insert worker goroutines based on received up/down requests
-	// and keeping track of their status while ensuring controlled termination and worker count adjustment.
-	go func(insWorker int, wType string) {
-		timeout := time.After(atimeout)
-		for {
-			select {
-			case <-timeout:
-				timeout = time.After(atimeout)
-				//log.Printf("UpDn_Insert_Worker_chan alive")
+	// TestAfterInsert is a boolean flag indicating whether to perform a test after an article insertion.
+	// The specific test details are not provided in the function, and the flag can be used for application-specific testing purposes.
+	TestAfterInsert bool
 
-			case retbool := <-UpDn_Insert_Worker_chan:
-				switch retbool {
-				case true:
-					insWorker++
-				case false:
-					if insWorker > 0 {
-						insWorker--
-					}
-				} // end switch retbool
-				updn_Set(wType, insWorker, -1, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
-			} // end select
-		} // end for
-	}(insWorker, "insert")
-	time.Sleep(time.Second / 1000)
+	// InsBatch sets the number of Msgidhashes a DeleteWorker will cache before deleting to batch into one process.
+	DelBatch int
 
-} // end func MongoWorker_UpDn_Scaler
+	// InsBatch sets the number of Articles an InsertWorker will cache before inserting to batch into one process.
+	InsBatch int
+} // end type MongoStorageConfig
 
 // MongoArticle represents an article stored in MongoDB.
 // It contains the following fields:
@@ -420,21 +206,125 @@ type MongoDeleteRequest struct {
 	RetChan     chan []*MongoArticle
 } // end type MongoDeleteRequest struct
 
+// GetDefaultMongoStorageConfig returns a MongoStorageConfig with default values.
+// The returned configuration is pre-filled with default values for MongoDB connection,
+// worker goroutines, and queue sizes. You can use this configuration as a starting point
+// and adjust specific fields based on your application's requirements.
+//
+// Example Usage:
+// cfg := GetDefaultMongoStorageConfig()
+// cfg.DelWorker = 3  // Adjust the number of delete worker goroutines.
+// cfg.InsQueue = 10  // Adjust the insert queue size.
+// cfg.GetWorker = 2  // Adjust the number of reader worker goroutines.
+//
+// Note: If you want to enable a test after an article insertion, set the TestAfterInsert field to true.
+// For instance, cfg.TestAfterInsert = true.
+func GetDefaultMongoStorageConfig() MongoStorageConfig {
+	cfg := MongoStorageConfig{
+		// Default MongoDB connection URI
+		MongoURI: DefaultMongoURI,
+
+		// Default MongoDB database name
+		MongoDatabaseName: DefaultMongoDatabaseName,
+
+		// Default MongoDB collection name
+		MongoCollection: DefaultMongoCollection,
+
+		// Default MongoDB timeout (in seconds) for connecting to the server
+		MongoTimeout: DefaultMongoTimeout,
+
+		// Default size of the delete queue (number of delete requests buffered before blocking)
+		DelQueue: DefaultDelQueue,
+
+		// Default number of delete worker goroutines
+		DelWorker: DefaultDelWorker,
+
+		// Default number of Msgidhashes a DeleteWorker will cache before deleting to batch into one process
+		DelBatch: DefaultDeleteBatchSize,
+
+		// Default size of the insert queue (number of insertion requests buffered before blocking)
+		InsQueue: DefaultInsQueue,
+
+		// Default number of insert worker goroutines
+		InsWorker: DefaultInsWorker,
+
+		// Default number of Articles an InsertWorker will cache before inserting to batch into one process
+		InsBatch: DefaultInsertBatchSize,
+
+		// Default size of the read queue (number of read requests buffered before blocking)
+		GetQueue: DefaultGetQueue,
+
+		// Default number of reader worker goroutines
+		GetWorker: DefaultGetWorker,
+
+		// Default test flag for performing a test after an article insertion
+		TestAfterInsert: false, // You can change this to true if you want to perform a test after an article insertion.
+	}
+
+	return cfg
+} // end func GetDefaultMongoStorageConfig
+
+// SetDefaultsIfZero takes a pointer to a MongoStorageConfig and sets integer-typed fields to their default values
+// if their current value is less than or equal to zero. It also sets default values for empty strings.
+// This function is useful for ensuring that all the fields in the MongoStorageConfig have valid values.
+func SetDefaultsIfZero(cfg *MongoStorageConfig) {
+	if cfg == nil {
+		return
+	}
+
+	if cfg.MongoURI == "" {
+		cfg.MongoURI = DefaultMongoURI
+	}
+	if cfg.MongoDatabaseName == "" {
+		cfg.MongoDatabaseName = DefaultMongoDatabaseName
+	}
+	if cfg.MongoCollection == "" {
+		cfg.MongoCollection = DefaultMongoCollection
+	}
+	if cfg.MongoTimeout <= 0 {
+		cfg.MongoTimeout = DefaultMongoTimeout
+	}
+	if cfg.DelQueue <= 0 {
+		cfg.DelQueue = DefaultDelQueue
+	}
+	if cfg.DelWorker <= 0 {
+		cfg.DelWorker = DefaultDelWorker
+	}
+	if cfg.DelBatch <= 0 {
+		cfg.DelBatch = DefaultDeleteBatchSize
+	}
+	if cfg.InsQueue <= 0 {
+		cfg.InsQueue = DefaultInsQueue
+	}
+	if cfg.InsWorker <= 0 {
+		cfg.InsWorker = DefaultInsWorker
+	}
+	if cfg.InsBatch <= 0 {
+		cfg.InsBatch = DefaultInsertBatchSize
+	}
+	if cfg.GetQueue <= 0 {
+		cfg.GetQueue = DefaultGetQueue
+	}
+	if cfg.GetWorker <= 0 {
+		cfg.GetWorker = DefaultGetWorker
+	}
+} // end func SetDefaultsIfZero
+
 // Load_MongoDB initializes the MongoDB storage backend with the specified configuration parameters.
 // It takes the following parameters:
-// - mongoUri: The MongoDB connection string. Replace 'your-mongodb-uri' with your actual MongoDB URI.
-// - mongoDatabaseName: The name of the MongoDB database to connect to. If empty, the default value is used.
-// - mongoCollection: The name of the MongoDB collection to access. If empty, the default value is used.
-// - mongoTimeout: The timeout value in seconds for the connection. If 0, the default value is used.
-// - delWorker: The number of MongoDB delete workers to create. If 0 or less, the default value is used.
-// - delQueue: The size of the delete queue for holding messageIDHashes to be deleted. If 0 or less, the default value is used.
-// - delBatch: The number of Msgidhashes a DeleteWorker will cache before deleting to batch into one process. If 0 or less, the default value is used.
-// - insWorker: The number of MongoDB insert workers to create. If 0 or less, the default value is used.
-// - insQueue: The size of the insert queue for holding MongoArticle objects to be inserted. If 0 or less, the default value is used.
-// - insBatch: The number of articles an InsertWorker will cache before inserting to batch into one process. If 0 or less, the default value is used.
-// - getWorker: The number of MongoDB reader workers to create. If 0 or less, the default value is used.
-// - getQueue: The size of the read queue for holding MongoReadRequest objects to be processed. If 0 or less, the default value is used.
-// - testAfterInsert: A boolean indicating whether to perform tests after inserting articles.
+// - MongoURI: The MongoDB connection string. Replace 'your-mongodb-uri' with your actual MongoDB URI.
+// - MongoDatabaseName: The name of the MongoDB database to connect to. If empty, the default value is used.
+// - MongoCollection: The name of the MongoDB collection to access. If empty, the default value is used.
+// - MongoTimeout: The timeout value in seconds for the connection. If 0, the default value is used.
+// - DelWorker: The number of MongoDB delete workers to create. If 0 or less, the default value is used.
+// - DelQueue: The size of the delete queue for holding messageIDHashes to be deleted. If 0 or less, the default value is used.
+// - DelBatch: The number of Msgidhashes a DeleteWorker will cache before deleting to batch into one process. If 0 or less, the default value is used.
+// - InsWorker: The number of MongoDB insert workers to create. If 0 or less, the default value is used.
+// - InsQueue: The size of the insert queue for holding MongoArticle objects to be inserted. If 0 or less, the default value is used.
+// - InsBatch: The number of articles an InsertWorker will cache before inserting to batch into one process. If 0 or less, the default value is used.
+// - GetWorker: The number of MongoDB reader workers to create. If 0 or less, the default value is used.
+// - GetQueue: The size of the read queue for holding MongoReadRequest objects to be processed. If 0 or less, the default value is used.
+// - TestAfterInsert: A boolean indicating whether to perform tests after inserting articles.
 //
 // The function initializes channels for delete, insert, and read operations based on the provided queue sizes.
 // It creates multiple worker goroutines for delete, insert, and read operations based on the provided worker counts.
@@ -448,50 +338,32 @@ type MongoDeleteRequest struct {
 // Note: The function starts the worker goroutines in separate background routines. The caller of this function should manage
 // the main program's lifecycle accordingly to ensure that these background goroutines terminate gracefully when needed.
 // function written by AI.
-func Load_MongoDB(mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64, delWorker int, delQueue int, delBatch int, insWorker int, insQueue int, insBatch int, getQueue int, getWorker int, testAfterInsert bool) {
+func Load_MongoDB(cfg *MongoStorageConfig) {
+	//func Load_MongoDB(MongoURI string, MongoDatabaseName string, MongoCollection string, MongoTimeout int64, DelWorker int, DelQueue int, DelBatch int, InsWorker int, InsQueue int, InsBatch int, GetQueue int, GetWorker int, TestAfterInsert bool) {
 	// Load_MongoDB initializes the mongodb storage backend
-	if delQueue <= 0 {
-		delQueue = DefaultDelQueue
-	}
-	if delWorker <= 0 {
-		delWorker = DefaultDelWorker
-	}
-	if delBatch <= 0 {
-		delBatch = DefaultDeleteBatchSize
-	}
-	if insQueue <= 0 {
-		insQueue = DefaultInsQueue
-	}
-	if insWorker <= 0 {
-		insWorker = DefaultInsWorker
-	}
-	if insBatch <= 0 {
-		insBatch = DefaultInsertBatchSize
-	}
-	if getQueue <= 0 {
-		getQueue = DefaultGetQueue
-	}
-	if getWorker <= 0 {
-		getWorker = DefaultGetWorker
-	}
+	SetDefaultsIfZero(cfg)
 
-	Mongo_Delete_queue = make(chan string, delQueue)
-	Mongo_Insert_queue = make(chan MongoArticle, insQueue)
-	Mongo_Reader_queue = make(chan MongoReadRequest, getQueue)
-	log.Printf("Load_MongoDB: Reader getQueue=%d getWorker=%d", getQueue, getWorker)
-	log.Printf("Load_MongoDB: Delete delQueue=%d delWorker=%d delBatch=%d", delQueue, delWorker, delBatch)
-	log.Printf("Load_MongoDB: Insert insQueue=%d insWorker=%d insBatch=%d", insQueue, insWorker, insBatch)
+	Mongo_Delete_queue = make(chan string, cfg.DelQueue)
+	Mongo_Insert_queue = make(chan MongoArticle, cfg.InsQueue)
+	Mongo_Reader_queue = make(chan MongoReadRequest, cfg.GetQueue)
+	log.Printf("Load_MongoDB: Reader GetQueue=%d GetWorker=%d", cfg.GetQueue, cfg.GetWorker)
+	log.Printf("Load_MongoDB: Delete DelQueue=%d DelWorker=%d DelBatch=%d", cfg.DelQueue, cfg.DelWorker, cfg.DelBatch)
+	log.Printf("Load_MongoDB: Insert InsQueue=%d InsWorker=%d InsBatch=%d", cfg.InsQueue, cfg.InsWorker, cfg.InsBatch)
 
-	MongoWorker_UpDn_Scaler(getWorker, delWorker, insWorker, delBatch, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
+	//MongoWorker_UpDn_Scaler(GetWorker, DelWorker, InsWorker, DelBatch, InsBatch, MongoURI, MongoDatabaseName, MongoCollection, MongoTimeout, TestAfterInsert)
+	MongoWorker_UpDn_Scaler(cfg)
 
-	for i := 1; i <= getWorker; i++ {
-		go MongoWorker_Reader(i, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
+	for i := 1; i <= cfg.GetWorker; i++ {
+		//go MongoWorker_Reader(i, cfg.MongoURI, cfg.MongoDatabaseName, cfg.MongoCollection, cfg.MongoTimeout)
+		go MongoWorker_Reader(i, cfg)
 	}
-	for i := 1; i <= delWorker; i++ {
-		go MongoWorker_Delete(i, delBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
+	for i := 1; i <= cfg.DelWorker; i++ {
+		//go MongoWorker_Delete(i, cfg.DelBatch, cfg.MongoURI, cfg.MongoDatabaseName, cfg.MongoCollection, cfg.MongoTimeout)
+		go MongoWorker_Delete(i, cfg)
 	}
-	for i := 1; i <= insWorker; i++ {
-		go MongoWorker_Insert(i, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
+	for i := 1; i <= cfg.InsWorker; i++ {
+		//go MongoWorker_Insert(i, cfg.InsBatch, cfg.MongoURI, cfg.MongoDatabaseName, cfg.MongoCollection, cfg.MongoTimeout, cfg.TestAfterInsert)
+		go MongoWorker_Insert(i, cfg)
 	}
 
 } // end func Load_MongoDB
@@ -499,10 +371,10 @@ func Load_MongoDB(mongoUri string, mongoDatabaseName string, mongoCollection str
 // ConnectMongoDB is a function responsible for establishing a connection to the MongoDB server and accessing a specific collection.
 // It takes the following parameters:
 // - who: A string representing the name or identifier of the calling function or worker.
-// - mongoUri: The MongoDB connection string. Replace 'your-mongodb-uri' with your actual MongoDB URI.
-// - mongoDatabaseName: The name of the MongoDB database to connect to. If empty, the default value is used.
-// - mongoCollection: The name of the MongoDB collection to access. If empty, the default value is used.
-// - mongoTimeout: The timeout value in seconds for the connection. If 0, the default value is used.
+// - MongoURI: The MongoDB connection string. Replace 'your-mongodb-uri' with your actual MongoDB URI.
+// - MongoDatabaseName: The name of the MongoDB database to connect to. If empty, the default value is used.
+// - MongoCollection: The name of the MongoDB collection to access. If empty, the default value is used.
+// - MongoTimeout: The timeout value in seconds for the connection. If 0, the default value is used.
 //
 // The function connects to the MongoDB server using the provided connection URI and establishes a client connection.
 // It sets a timeout for the connection to prevent hanging connections.
@@ -512,30 +384,16 @@ func Load_MongoDB(mongoUri string, mongoDatabaseName string, mongoCollection str
 // If an error occurs during the connection process, it logs the error and returns the error to the caller.
 // The caller of this function should handle any returned error appropriately.
 // function written by AI.
-func ConnectMongoDB(who string, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64) (context.Context, context.CancelFunc, *mongo.Client, *mongo.Collection, error) {
-	// MongoDB connection string.
-	// Replace 'your-mongodb-uri' with your actual MongoDB URI.
-	if mongoUri == "" {
-		mongoUri = DefaultMongoUri
-	}
-	if mongoDatabaseName == "" {
-		mongoDatabaseName = DefaultMongoDatabaseName
-	}
-	if mongoCollection == "" {
-		mongoCollection = DefaultMongoCollection
-	}
-	if mongoTimeout == 0 {
-		mongoTimeout = DefaultMongoTimeout
-	}
-	// Connect to MongoDB.
-	client, err := mongo.NewClient(options.Client().ApplyURI(mongoUri))
+func ConnectMongoDB(who string, cfg *MongoStorageConfig) (context.Context, context.CancelFunc, *mongo.Client, *mongo.Collection, error) {
+
+	client, err := mongo.NewClient(options.Client().ApplyURI(cfg.MongoURI))
 	if err != nil {
 		log.Printf("MongoDB Error creating MongoDB client: %v", err)
 		return nil, nil, nil, nil, err
 	}
 
 	// Set a timeout for the connection.
-	newTimeout := time.Second * time.Duration(mongoTimeout)
+	newTimeout := time.Second * time.Duration(cfg.MongoTimeout)
 	deadline := time.Now().Add(newTimeout)
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	err = client.Connect(ctx)
@@ -546,7 +404,7 @@ func ConnectMongoDB(who string, mongoUri string, mongoDatabaseName string, mongo
 	}
 
 	// Access the MongoDB collection.
-	collection := client.Database(mongoDatabaseName).Collection(mongoCollection)
+	collection := client.Database(cfg.MongoDatabaseName).Collection(cfg.MongoCollection)
 
 	log.Printf("-> ConnectMongoDB who=%s", who)
 	return ctx, cancel, client, collection, err
@@ -579,11 +437,11 @@ func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) er
 //
 // The function takes the following parameters:
 // - wid: An integer representing the worker ID for identification purposes.
-// - mongoUri: The MongoDB URI used to connect to the MongoDB server.
-// - mongoDatabaseName: The name of the MongoDB database where the articles are to be stored.
-// - mongoCollection: The name of the MongoDB collection where the articles are to be stored.
-// - mongoTimeout: The timeout value (in seconds) for the MongoDB operations.
-// - testAfterInsert: A boolean flag to indicate whether to perform article existence checks after insertions (for testing purposes).
+// - MongoURI: The MongoDB URI used to connect to the MongoDB server.
+// - MongoDatabaseName: The name of the MongoDB database where the articles are to be stored.
+// - MongoCollection: The name of the MongoDB collection where the articles are to be stored.
+// - MongoTimeout: The timeout value (in seconds) for the MongoDB operations.
+// - TestAfterInsert: A boolean flag to indicate whether to perform article existence checks after insertions (for testing purposes).
 //
 // The MongoWorker_Insert initializes a MongoDB client and collection and continuously waits for incoming insert requests.
 // It accumulates the articles to be inserted until the number of articles reaches the limit set by 'cap(Mongo_Insert_queue)'.
@@ -592,11 +450,11 @@ func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) er
 // The function uses exponential backoff with jitter to retry connecting to the MongoDB server in case of connection errors.
 // Once the 'Mongo_Insert_queue' is closed, the function performs disconnection from the MongoDB server and terminates.
 //
-// If the 'testAfterInsert' flag is set to true, the function will perform article existence checks after each insertion.
+// If the 'TestAfterInsert' flag is set to true, the function will perform article existence checks after each insertion.
 // This check verifies whether the article with the given MessageIDHash exists in the collection after the insertion.
 // The check logs the results of the existence test for each article.
 // function partly written by AI.
-func MongoWorker_Insert(wid int, batchsize int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64, testAfterInsert bool) {
+func MongoWorker_Insert(wid int, cfg *MongoStorageConfig) {
 	if wid <= 0 {
 		log.Printf("Error MongoWorker_Insert wid <= 0")
 		return
@@ -611,7 +469,7 @@ func MongoWorker_Insert(wid int, batchsize int, mongoUri string, mongoDatabaseNa
 	var err error
 	attempts := 0
 	for {
-		ctx, cancel, client, collection, err = ConnectMongoDB(who, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
+		ctx, cancel, client, collection, err = ConnectMongoDB(who, cfg)
 		if err != nil {
 			attempts++
 			log.Printf("MongoDB Error MongoWorker_Insert ConnectMongoDB err='%v'", err)
@@ -630,12 +488,12 @@ forever:
 	for {
 		do_insert := false
 		len_arts := len(articles)
-		if len_arts == batchsize || is_timeout {
+		if len_arts == cfg.InsBatch || is_timeout {
 			diff = utils.UnixTimeSec() - last_insert
 
-			if len_arts >= batchsize {
+			if len_arts >= cfg.InsBatch {
 				do_insert = true
-			} else if is_timeout && len_arts > 0 && diff > mongoTimeout {
+			} else if is_timeout && len_arts > 0 && diff > cfg.MongoTimeout {
 				do_insert = true
 			}
 			if is_timeout {
@@ -644,11 +502,11 @@ forever:
 
 			if do_insert {
 				log.Printf("Pre-Ins Many msgidhashes=%d", len_arts)
-				ctx, cancel = extendContextTimeout(ctx, cancel, mongoTimeout)
+				ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 				if err := MongoInsertManyArticles(ctx, collection, articles); err != nil {
 					reboot = true
 				}
-				if testAfterInsert {
+				if cfg.TestAfterInsert {
 					for _, article := range articles {
 						if retbool, err := checkIfArticleExistsByMessageIDHash(ctx, collection, article.MessageIDHash); retbool {
 							// The article with the given hash exists.
@@ -670,7 +528,7 @@ forever:
 				break forever
 			}
 			articles = append(articles, &article)
-			if len(articles) >= batchsize {
+			if len(articles) >= cfg.InsBatch {
 				break insert_queue
 			}
 		case <-timeout:
@@ -690,7 +548,7 @@ forever:
 	DisConnectMongoDB(who, ctx, client)
 	log.Printf("xx End %s reboot=%t", who, reboot)
 	if reboot {
-		go MongoWorker_Insert(wid, batchsize, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
+		go MongoWorker_Insert(wid, cfg)
 	}
 } // end func MongoWorker_Insert
 
@@ -700,10 +558,10 @@ forever:
 //
 // The function takes the following parameters:
 // - wid: An integer representing the worker ID for identification purposes.
-// - mongoUri: The MongoDB URI used to connect to the MongoDB server.
-// - mongoDatabaseName: The name of the MongoDB database where the articles are stored.
-// - mongoCollection: The name of the MongoDB collection where the articles are stored.
-// - mongoTimeout: The timeout value (in seconds) for the MongoDB operations.
+// - MongoURI: The MongoDB URI used to connect to the MongoDB server.
+// - MongoDatabaseName: The name of the MongoDB database where the articles are stored.
+// - MongoCollection: The name of the MongoDB collection where the articles are stored.
+// - MongoTimeout: The timeout value (in seconds) for the MongoDB operations.
 //
 // The MongoWorker_Delete initializes a MongoDB client and collection, and continuously waits for incoming delete requests.
 // It accumulates the MessageIDHashes to be deleted until the number of hashes reaches the limit set by 'cap(Mongo_Delete_queue)'.
@@ -715,7 +573,7 @@ forever:
 // Note: If the 'limit' is set to 1, the function will delete articles one by one, processing individual delete requests from the queue.
 // Otherwise, it will delete articles in bulk based on the accumulated MessageIDHashes.
 // function partly written by AI.
-func MongoWorker_Delete(wid int, batchsize int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64) {
+func MongoWorker_Delete(wid int, cfg *MongoStorageConfig) {
 	if wid <= 0 {
 		log.Printf("Error MongoWorker_Delete wid <= 0")
 		return
@@ -729,7 +587,7 @@ func MongoWorker_Delete(wid int, batchsize int, mongoUri string, mongoDatabaseNa
 	var err error
 	attempts := 0
 	for {
-		ctx, cancel, client, collection, err = ConnectMongoDB(who, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
+		ctx, cancel, client, collection, err = ConnectMongoDB(who, cfg)
 		if err != nil {
 			attempts++
 			log.Printf("MongoDB Error MongoWorker_Insert ConnectMongoDB err='%v'", err)
@@ -748,11 +606,11 @@ forever:
 	for {
 		len_hashs := len(msgidhashes)
 		do_delete := false
-		if len_hashs == batchsize || is_timeout {
+		if len_hashs == cfg.DelBatch || is_timeout {
 			diff = utils.UnixTimeSec() - last_delete
-			if len_hashs >= batchsize {
+			if len_hashs >= cfg.DelBatch {
 				do_delete = true
-			} else if is_timeout && len_hashs > 0 && diff > mongoTimeout {
+			} else if is_timeout && len_hashs > 0 && diff > cfg.MongoTimeout {
 				do_delete = true
 			}
 			if is_timeout {
@@ -762,7 +620,7 @@ forever:
 
 		if do_delete {
 			log.Printf("Pre-Del Many msgidhashes=%d", len_hashs)
-			ctx, cancel = extendContextTimeout(ctx, cancel, mongoTimeout)
+			ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 			MongoDeleteManyArticles(ctx, collection, msgidhashes)
 			msgidhashes = []string{}
 			last_delete = utils.UnixTimeSec()
@@ -776,10 +634,10 @@ forever:
 				log.Printf("__ Quit %s", who)
 				break forever
 			}
-			if batchsize == 1 { // deletes articles one by one
+			if cfg.DelBatch == 1 { // deletes articles one by one
 				for messageIDHash := range Mongo_Delete_queue {
 					log.Printf("Pre-Del One msgidhash='%s'", msgidhash)
-					ctx, cancel = extendContextTimeout(ctx, cancel, mongoTimeout)
+					ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 					err := deleteArticlesByMessageIDHash(ctx, collection, messageIDHash)
 					if err != nil {
 						log.Printf("MongoDB Error deleting messageIDHash=%s err='%v'", messageIDHash, err)
@@ -791,7 +649,7 @@ forever:
 				msgidhashes = append(msgidhashes, msgidhash)
 				//log.Printf("Append Del Worker: msgidhash='%s' to msgidhashes=%d", msgidhash, len(msgidhashes))
 			}
-			if len(msgidhashes) >= batchsize {
+			if len(msgidhashes) >= cfg.DelBatch {
 				break select_delete_queue
 			}
 		case <-timeout:
@@ -819,10 +677,10 @@ forever:
 //
 // The function takes the following parameters:
 // - wid: An integer representing the worker ID for identification purposes.
-// - mongoUri: The MongoDB URI used to connect to the MongoDB server.
-// - mongoDatabaseName: The name of the MongoDB database where the articles are stored.
-// - mongoCollection: The name of the MongoDB collection where the articles are stored.
-// - mongoTimeout: The timeout value (in seconds) for the MongoDB operations.
+// - MongoURI: The MongoDB URI used to connect to the MongoDB server.
+// - MongoDatabaseName: The name of the MongoDB database where the articles are stored.
+// - MongoCollection: The name of the MongoDB collection where the articles are stored.
+// - MongoTimeout: The timeout value (in seconds) for the MongoDB operations.
 //
 // The MongoWorker_Reader initializes a MongoDB client and collection, and continuously waits for incoming read requests.
 // When a read request is received, it reads articles from the collection for the specified MessageIDHashes using the 'readArticlesByMessageIDHashes' function.
@@ -834,7 +692,7 @@ forever:
 // The function uses exponential backoff with jitter to retry connecting to the MongoDB server in case of connection errors.
 // Once the 'Mongo_Reader_queue' is closed, the function performs disconnection from the MongoDB server and terminates.
 // function partly written by AI.
-func MongoWorker_Reader(wid int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64) {
+func MongoWorker_Reader(wid int, cfg *MongoStorageConfig) {
 	if wid <= 0 {
 		log.Printf("Error MongoWorker_Reader wid <= 0")
 		return
@@ -848,7 +706,7 @@ func MongoWorker_Reader(wid int, mongoUri string, mongoDatabaseName string, mong
 	var err error
 	attempts := 0
 	for {
-		ctx, cancel, client, collection, err = ConnectMongoDB(who, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
+		ctx, cancel, client, collection, err = ConnectMongoDB(who, cfg)
 		if err != nil {
 			attempts++
 			log.Printf("MongoDB Error MongoWorker_Reader ConnectMongoDB err='%v'", err)
@@ -870,7 +728,7 @@ forever:
 			}
 			log.Printf("MongoWorker_Reader %d process readreq", wid)
 
-			ctx, cancel = extendContextTimeout(ctx, cancel, mongoTimeout)
+			ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 			// Read articles for the given msgidhashes.
 			articles, err := readArticlesByMessageIDHashes(ctx, collection, readreq.Msgidhashes)
 			if err != nil {
@@ -1013,17 +871,17 @@ func MongoDeleteManyArticles(ctx context.Context, collection *mongo.Collection, 
 // Parameters:
 //   - ctx: The original context that needs its deadline extended.
 //   - cancel: The cancel function associated with the original context.
-//   - mongoTimeout: The new timeout value in seconds for the updated context.
+//   - MongoTimeout: The new timeout value in seconds for the updated context.
 //
 // Returns:
 //   - context.Context: The updated context with an extended deadline.
 //   - context.CancelFunc: The cancel function associated with the updated context.
 //
 // function written by AI.
-func extendContextTimeout(ctx context.Context, cancel context.CancelFunc, mongoTimeout int64) (context.Context, context.CancelFunc) {
+func extendContextTimeout(ctx context.Context, cancel context.CancelFunc, MongoTimeout int64) (context.Context, context.CancelFunc) {
 	//log.Printf("extendContextTimeout")
 	cancel()
-	newTimeout := time.Second * time.Duration(mongoTimeout)
+	newTimeout := time.Second * time.Duration(MongoTimeout)
 	deadline := time.Now().Add(newTimeout)
 	ctx, cancel = context.WithDeadline(context.Background(), deadline)
 	return ctx, cancel
@@ -1408,5 +1266,281 @@ func MongoWorker_UpDN_Random() {
 		}
 	}
 } // end func MongoWorker_UpDN_Random
+
+// iStop_Worker stops the worker of the specified type and returns the worker's maximum ID.
+// Parameters:
+// - wType: A string indicating the type of worker to stop.
+// - Possible values are "reader", "delete", or "insert".
+//
+// Return Value:
+// The function returns an integer representing the maximum ID of the worker.
+//
+// Explanation:
+// The iStop_Worker function is responsible for stopping a specific type of worker (reader, delete, or insert)
+// and retrieving the worker's maximum ID before stopping it. The function uses channels to communicate with
+// the worker goroutines and control their termination.
+// The function uses a switch statement to identify the type of worker to stop. For each type, it reads the current
+// maximum worker ID from the corresponding channel. After retrieving the ID, it immediately writes it back to the
+// channel, effectively "parking" the value again, so other parts of the code can still access the ID.
+// This mechanism allows the caller to stop a specific worker safely and get the worker's maximum ID for further
+// processing if needed.
+//
+// Example Usage:
+// maxID := iStop_Worker("reader")
+// if wid > maxID { return // stop Worker }
+//
+// iStop_Worker stops the worker of the specified type and returns the worker's maximum ID.
+// Parameters:
+// - wType: A string indicating the type of worker to stop. Possible values are "reader", "delete", or "insert".
+//
+// Return Value:
+// The function returns an integer representing the maximum ID of the worker.
+//
+// Explanation:
+// iStop_Worker is responsible for stopping a specific type of worker (reader, delete, or insert)
+// The function uses channels to communicate indirectly with the worker goroutines to control their termination.
+// Based on the provided wType, the function reads the current maximum worker ID from the corresponding channel.
+// After retrieving the ID, it immediately writes it back to the channel, effectively "parking" the value again
+// to allow other parts of the code to access the ID safely.
+// This mechanism ensures the caller can stop a specific worker and obtain the worker's maximum ID for further processing if needed.
+//
+// Example Usage:
+// maxID := iStop_Worker("reader")
+//
+//	if wid > maxID {
+//	    return // stop Worker
+//	}
+//
+// function not written by AI.
+func iStop_Worker(wType string) int {
+	var maxwid int
+	switch wType {
+	case "reader":
+		maxwid = <-stop_reader_worker_chan // read value
+		stop_reader_worker_chan <- maxwid  // park value again
+	case "delete":
+		maxwid = <-stop_delete_worker_chan // read value
+		stop_delete_worker_chan <- maxwid  // park value again
+	case "insert":
+		maxwid = <-stop_insert_worker_chan // read value
+		stop_insert_worker_chan <- maxwid  // park value again
+	default:
+		log.Printf("Error iStop_Worker unknown Wtype=%s", wType)
+	} // end switch wType
+	return maxwid
+} // fund end iStop_Worker
+
+// updn_Set updates the worker count of the specified type and starts or stops worker goroutines accordingly.
+// Parameters:
+// - wType: A string indicating the type of worker to update. Possible values are "reader", "delete", or "insert".
+// - maxwid: An integer representing the new worker count.
+// - DelBatch: An integer representing the batch size for delete workers.
+// - InsBatch: An integer representing the batch size for insert workers.
+// - MongoURI: The MongoDB connection string.
+// - MongoDatabaseName: The name of the MongoDB database to connect to.
+// - MongoCollection: The name of the MongoDB collection to access.
+// - MongoTimeout: The timeout value in seconds for the MongoDB connection.
+// - TestAfterInsert: A boolean indicating whether to perform tests after inserting articles.
+//
+// Explanation:
+// updn_Set is used by MongoWorker_UpDn_Scaler to update the count of a specific type of worker (reader, delete, or insert).
+// Based on the provided wType, the function reads the current worker count from the corresponding channel and then
+// writes the new worker count (maxwid) back to the channel.
+// If the new worker count (maxwid) is greater than the current worker count (oldval), the function starts new worker
+// goroutines for the specified type (reader, delete, or insert) up to the new worker count.
+// If the new worker count is less than or equal to the current worker count, the function stops the extra worker goroutines.
+// function not written by AI.
+func updn_Set(wType string, maxwid int, cfg *MongoStorageConfig) {
+	var oldval int
+	switch wType {
+	case "reader":
+		oldval = <-stop_reader_worker_chan // read old value
+		stop_reader_worker_chan <- maxwid  // set new value
+	case "delete":
+		oldval = <-stop_delete_worker_chan // read old value
+		stop_delete_worker_chan <- maxwid  // set new value
+	case "insert":
+		oldval = <-stop_insert_worker_chan // read old value
+		stop_insert_worker_chan <- maxwid  // set new value
+	default:
+		log.Printf("Error updn_Set unknown Wtype=%s", wType)
+	} // end switch wType
+
+	if maxwid > oldval {
+		// start new worker routines for wType
+		switch wType {
+		case "reader":
+			for i := oldval + 1; i <= maxwid; i++ {
+				go MongoWorker_Reader(i, cfg)
+			}
+		case "delete":
+			for i := oldval + 1; i <= maxwid; i++ {
+				go MongoWorker_Delete(i, cfg)
+			}
+		case "insert":
+			for i := oldval + 1; i <= maxwid; i++ {
+				go MongoWorker_Insert(i, cfg)
+			}
+		default:
+			log.Printf("Error updn_Set unknown Wtype=%s", wType)
+		} // end switch wType
+	}
+	log.Printf("$$ updn_Set wType=%s oldval=%d maxwid=%d", wType, oldval, maxwid)
+} // end func updn_Set
+
+// MongoWorker_UpDn_Scaler runs in the background and listens on channels for up/down requests to start/stop workers.
+// Parameters:
+// - GetWorker: An integer representing the initial number of reader workers to start with.
+// - DelWorker: An integer representing the initial number of delete workers to start with.
+// - InsWorker: An integer representing the initial number of insert workers to start with.
+//
+// Explanation:
+// MongoWorker_UpDn_Scaler is responsible for managing the scaling of worker goroutines based on up/down requests.
+// It listens to UpDn_*_Worker_chan channels to receive requests for starting or stopping specific types of workers.
+// The function uses updn_Set to update the worker counts accordingly, which effectively starts or stops worker goroutines.
+// This mechanism allows the application to dynamically adjust the number of worker goroutines based on the workload
+// or other factors.
+// Note: The function runs in the background and continues to process requests as they arrive.
+//
+// function not written by AI.
+func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital values
+	// load initial values into channels
+	stop_reader_worker_chan <- cfg.GetWorker
+	stop_delete_worker_chan <- cfg.DelWorker
+	stop_insert_worker_chan <- cfg.InsWorker
+	atimeout := time.Duration(time.Second * 5)
+	// The anonymous goroutine periodically checks the UpDn_StopAll_Worker_chan channel for messages.
+	// If a "true" value is received, it sends "false" to all UpDn_*_Worker channels
+	//   (UpDn_Reader_Worker_chan, UpDn_Delete_Worker_chan, and UpDn_Insert_Worker_chan)
+	// to signal the worker goroutines to stop gracefully.
+	// If a "false" value is received, no action is taken.
+	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
+	// This functionality allows dynamically scaling the number of worker goroutines based on received up/down requests
+	// while keeping track of their status and allowing controlled termination.
+	go func(getWorker int, delWorker int, insWorker int) {
+		timeout := time.After(atimeout)
+		for {
+			select {
+			case <-timeout:
+				timeout = time.After(atimeout)
+				//log.Printf("UpDn_StopAll_Worker_chan alive")
+
+			case retbool := <-UpDn_StopAll_Worker_chan:
+				switch retbool {
+				case true:
+					// pass a false to all UpDn_*_Worker channels to stop them
+					for i := 1; i <= getWorker; i++ {
+						UpDn_Reader_Worker_chan <- false
+					}
+					for i := 1; i <= delWorker; i++ {
+						UpDn_Delete_Worker_chan <- false
+					}
+					for i := 1; i <= insWorker; i++ {
+						UpDn_Insert_Worker_chan <- false
+					}
+				case false:
+					// pass here, will not do anything
+					// to stop all workers
+					//   pass a single true to UpDn_StopAll_Worker_chan
+				} // end switch retbool
+			} // end select
+		} // end for
+	}(cfg.GetWorker, cfg.DelWorker, cfg.InsWorker)
+	time.Sleep(time.Second / 1000)
+
+	// The anonymous goroutine continuously listens to the UpDn_Reader_Worker_chan channel for messages.
+	// If a "true" value is received, it increments the GetWorker variable to increase the number of reader worker goroutines.
+	// If a "false" value is received, it decrements GetWorker to decrease the number of reader worker goroutines.
+	// After processing the message, the goroutine calls the updn_Set function to update the reader worker count with the new value (GetWorker).
+	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
+	// The time.Sleep function is used to slightly delay the execution to avoid consuming excessive resources.
+	// This functionality allows dynamically scaling the number of reader worker goroutines based on received up/down requests
+	// and keeping track of their status while ensuring controlled termination and worker count adjustment.
+	go func(getWorker int, wType string) {
+		timeout := time.After(atimeout)
+		for {
+			select {
+			case <-timeout:
+				timeout = time.After(atimeout)
+				//log.Printf("UpDn_Reader_Worker_chan alive")
+
+			case retbool := <-UpDn_Reader_Worker_chan:
+				switch retbool {
+				case true:
+					getWorker++
+				case false:
+					if getWorker > 0 {
+						getWorker--
+					}
+				} // end switch retbool
+				updn_Set(wType, getWorker, cfg)
+			} // end select
+		} // end for
+	}(cfg.GetWorker, "reader")
+	time.Sleep(time.Second / 1000)
+
+	// The anonymous goroutine continuously listens to the UpDn_Delete_Worker_chan channel for messages.
+	// If a "true" value is received, it increments the DelWorker variable to increase the number of delete worker goroutines.
+	// If a "false" value is received, it decrements DelWorker to decrease the number of delete worker goroutines.
+	// After processing the message, the goroutine calls the updn_Set function to update the delete worker count with the new value (DelWorker).
+	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
+	// The time.Sleep function is used to slightly delay the execution to avoid consuming excessive resources.
+	//This functionality allows dynamically scaling the number of delete worker goroutines based on received up/down requests
+	// and keeping track of their status while ensuring controlled termination and worker count adjustment.
+	go func(delWorker int, wType string) {
+		timeout := time.After(atimeout)
+		for {
+			select {
+			case <-timeout:
+				timeout = time.After(atimeout)
+				//log.Printf("UpDn_Delete_Worker_chan alive")
+
+			case retbool := <-UpDn_Delete_Worker_chan:
+				switch retbool {
+				case true:
+					delWorker++
+				case false:
+					if delWorker > 0 {
+						delWorker--
+					}
+				} // end switch retbool
+				updn_Set(wType, delWorker, cfg)
+			} // end select
+		} // end for
+	}(cfg.DelWorker, "delete")
+	time.Sleep(time.Second / 1000)
+
+	// The anonymous goroutine continuously listens to the UpDn_Insert_Worker_chan channel for messages.
+	// If a "true" value is received, it increments the InsWorker variable to increase the number of insert worker goroutines.
+	// If a "false" value is received, it decrements InsWorker to decrease the number of insert worker goroutines.
+	// After processing the message, the goroutine calls the updn_Set function to update the insert worker count with the new value (InsWorker).
+	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
+	// The time.Sleep function is used to slightly delay the execution to avoid consuming excessive resources.
+	// This functionality allows dynamically scaling the number of insert worker goroutines based on received up/down requests
+	// and keeping track of their status while ensuring controlled termination and worker count adjustment.
+	go func(insWorker int, wType string) {
+		timeout := time.After(atimeout)
+		for {
+			select {
+			case <-timeout:
+				timeout = time.After(atimeout)
+				//log.Printf("UpDn_Insert_Worker_chan alive")
+
+			case retbool := <-UpDn_Insert_Worker_chan:
+				switch retbool {
+				case true:
+					insWorker++
+				case false:
+					if insWorker > 0 {
+						insWorker--
+					}
+				} // end switch retbool
+				updn_Set(wType, insWorker, cfg)
+			} // end select
+		} // end for
+	}(cfg.InsWorker, "insert")
+	time.Sleep(time.Second / 1000)
+
+} // end func MongoWorker_UpDn_Scaler
 
 // EOF mongodb_storage.go
