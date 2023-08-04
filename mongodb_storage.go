@@ -620,7 +620,7 @@ func MongoWorker_Insert(wid int, batchsize int, mongoUri string, mongoDatabaseNa
 		}
 		break
 	}
-	timeOutTime := time.Duration(time.Second * 3)
+	timeOutTime := time.Duration(time.Second * 1)
 	timeout := time.After(timeOutTime)
 	articles := []*MongoArticle{}
 	is_timeout := false
@@ -738,7 +738,7 @@ func MongoWorker_Delete(wid int, batchsize int, mongoUri string, mongoDatabaseNa
 		}
 		break
 	}
-	timeOutTime := time.Duration(time.Second * 3)
+	timeOutTime := time.Duration(time.Second * 1)
 	timeout := time.After(timeOutTime)
 	msgidhashes := []string{}
 	is_timeout := false
@@ -1360,7 +1360,7 @@ func calculateExponentialBackoff(attempt int) time.Duration {
 	return backoffDuration + jitter
 } // end func calculateExponentialBackoff
 
-// randomUpDN periodically sends random up/down (true/false) signals to the worker channels.
+// MongoWorker_UpDN_Random periodically sends random up/down (true/false) signals to the worker channels.
 // This function generates two random integers: arandA and arandB.
 // It then interprets the values of arandA and arandB to determine which worker channel to send the signal to.
 // The function uses a switch statement to decide which worker channel to use based on the random values.
@@ -1370,12 +1370,12 @@ func calculateExponentialBackoff(attempt int) time.Duration {
 // - If arandB is 1, it sends the signal to the "delete" worker channel.
 // - If arandB is 2, it sends the signal to the "insert" worker channel.
 // - If arandB is 3, it sends the signal to the "StopAll" worker channel, which will stop all worker goroutines if sendbool is true.
-// The function then repeats this process in an infinite loop with a 5 second sleep between iterations.
+// The function then repeats this process in an infinite loop with a N second sleep between iterations.
 // The purpose of this function is to simulate random up/down requests to control the worker
 // function not written by AI.
-// ./mongodbtest -randomUpDN -test-num 0
+// ./mongodbtest -MongoWorker_UpDN_Random -test-num 0
 func MongoWorker_UpDN_Random() {
-	isleep := 5
+	isleep := 1
 	log.Print("Start mongostorage.MongoWorker_UpDN_Random")
 	for {
 		arandA := rand.Intn(2)
