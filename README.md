@@ -75,15 +75,56 @@ You can adjust the number of worker goroutines and queue sizes based on your app
 - `testAfterInsert` (bool): A flag indicating whether to perform a test after an article insertion. The specific test details are not provided in the function, and the flag can be used for application-specific testing purposes.
 
 
-# Load_MongoDB: More Description
+# MongoDB Storage Configuration
 
-1. MongoDB Connection: The Load_MongoDB function establishes a connection to the MongoDB server specified in the `mongoURI`.
+This document describes the default configuration options for the MongoDB storage package.
 
-2. Database and Collections: It uses the `mongoDatabaseName` to select or create the target database for article storage and retrieval. Within the selected database, the function creates or retrieves the MongoDB collections for storing articles.
+These constants define various settings used when no specific values are provided during the MongoDB setup.
 
-3. Start Workers: The function starts the provided `MongoDeleteWorker`, `MongoInsertWorker`, and `MongoReaderWorker` goroutines to process article deletions, insertions, and reading operations concurrently.
+## Default MongoDB Connection
 
-4. Queue Setup: The function sets up the `Mongo_Delete_queue`, `Mongo_Insert_queue`, and `Mongo_Reader_queue`, which are channels used for communication between the main program and the worker goroutines. These channels are used to enqueue articles for deletion, insertion, and reads, respectively.
+- `DefaultMongoUri`: The default MongoDB connection string used when no URI is provided. It points to `mongodb://localhost:27017`, indicating the MongoDB server is running on the local machine on the default port 27017.
+
+## Default Database and Collection Names
+
+- `DefaultMongoDatabaseName`: The default name of the MongoDB database used when no database name is provided. It is set to "nntp" by default.
+
+- `DefaultMongoCollection`: The default name of the MongoDB collection used when no collection name is provided. The collection name is set to "articles" by default.
+
+## Default MongoDB Timeout
+
+- `DefaultMongoTimeout`: The default timeout value (in seconds) for connecting to MongoDB. The timeout is set to 15 seconds.
+
+## Default Worker and Queue Settings
+
+- `DefaultDelWorker`: The number of `DeleteWorker` instances to start by default. It is set to 1.
+
+- `DefaultDelQueue`: The number of delete requests allowed to be queued. It is set to 2.
+
+- `DefaultDeleteBatchsize`: The number of Msgidhashes a `DeleteWorker` will cache before deleting to batch into one process. It is set to 1.
+
+- `DefaultInsWorker`: The number of `InsertWorker` instances to start by default. It is set to 1.
+
+- `DefaultInsQueue`: The number of insert requests allowed to be queued. It is set to 2.
+
+- `DefaultInsertBatchsize`: The number of articles an `InsertWorker` will cache before inserting to batch into one process. It is set to 1.
+
+- `DefaultGetWorker`: The number of `ReaderWorker` instances to start by default. It is set to 1.
+
+- `DefaultGetQueue`: The total queue length for all `ReaderWorker` instances. It is set to 2.
+
+Please note that these default values can be adjusted according to your specific requirements and available system resources.
+
+Custom configurations can be provided when setting up the MongoDB storage package to optimize its performance for your application.
+
+
+## Compression Constants (Magic Numbers)
+
+- `NOCOMP` (int): Represents the value indicating no compression for articles. Value: 0
+
+- `GZIP_enc` (int): Represents the value indicating GZIP compression for articles. Value: 1.
+
+- `ZLIB_enc` (int): Represents the value indicating ZLIB compression for articles. Value: 2.
 
 
 # MongoReadRequest Struct
