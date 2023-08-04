@@ -207,7 +207,7 @@ func updn_Set(wType string, maxwid int, delBatch int, insBatch int, mongoUri str
 			log.Printf("Error updn_Set unknown Wtype=%s", wType)
 		} // end switch wType
 	}
-	log.Printf("updn_Set wType=%s oldval=%d maxwid=%d", oldval, maxwid)
+	log.Printf("updn_Set wType=%s oldval=%d maxwid=%d", wType, oldval, maxwid)
 } // end func updn_Set
 
 // Worker_UpDn_Scaler runs in the background and listens on channels for up/down requests to start/stop workers.
@@ -1349,5 +1349,54 @@ func calculateExponentialBackoff(attempt int) time.Duration {
 	jitter := time.Duration(rand.Int63n(int64(backoffBase / 2)))
 	return backoffDuration + jitter
 } // end func calculateExponentialBackoff
+
+// randomUpDN periodically sends random up/down (true/false) signals to the worker channels.
+// This function generates two random integers: arandA and arandB.
+// It then interprets the values of arandA and arandB to determine which worker channel to send the signal to.
+// The function uses a switch statement to decide which worker channel to use based on the random values.
+// If arandA is 1, it sets sendbool to true; otherwise, it remains false.
+// Depending on the value of arandB, the function sends the sendbool value to one of four worker channels:
+// - If arandB is 0, it sends the signal to the "reader" worker channel.
+// - If arandB is 1, it sends the signal to the "delete" worker channel.
+// - If arandB is 2, it sends the signal to the "insert" worker channel.
+// - If arandB is 3, it sends the signal to the "StopAll" worker channel, which will stop all worker goroutines if sendbool is true.
+// The function then repeats this process in an infinite loop with a 5 second sleep between iterations.
+// The purpose of this function is to simulate random up/down requests to control the worker
+// function not written by AI.
+// ./mongodbtest -randomUpDN -test-num 0
+func RandomUpDN() {
+	isleep := 5
+	log.Print("start mongostorage.RandomUpDN")
+	for {
+		arandA := rand.Intn(2)
+		arandB := rand.Intn(3)
+		time.Sleep(time.Second * time.Duration(isleep))
+		sendbool := false
+		switch arandA {
+		case 1:
+			sendbool = true
+		default:
+		}
+		switch arandB {
+		case 0:
+			//wType = "reader"
+			log.Printf("randomUpDN sending %t to UpDn_Reader_Worker_chan", sendbool)
+			UpDn_Reader_Worker_chan <- sendbool
+		case 1:
+			//wType = "delete"
+			log.Printf("randomUpDN sending %t to UpDn_Delete_Worker_chan", sendbool)
+			UpDn_Delete_Worker_chan <- sendbool
+		case 2:
+			//wType = "insert"
+			log.Printf("randomUpDN sending %t to UpDn_Insert_Worker_chan", sendbool)
+			UpDn_Insert_Worker_chan <- sendbool
+		case 3:
+			//wType = "StopAll"
+			log.Printf("randomUpDN sending %t to UpDn_StopAll_Worker_chan", sendbool)
+			UpDn_StopAll_Worker_chan <- sendbool
+		default:
+		}
+	}
+} // end func RandomUpDN
 
 // EOF mongodb_storage.go
