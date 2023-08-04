@@ -26,53 +26,50 @@ The Load_MongoDB function is a part of the mongostorage package in the provided 
 It serves as a convenient initializer to set up the MongoDB configuration and
 establishes connections to the MongoDB database and collections for article storage, deletion and read requests.
 
-Function Signature
-```go
-func Load_MongoDB(mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64, delWorker int, delQueue int, insWorker int, insQueue int, getQueue int, getWorker int, testAfterInsert bool)
-```
-
 # Load_MongoDB: Usage
 
-The `Load_MongoDB(...)` function accepts several parameters to control the behavior of the MongoDB storage backend and manage the worker goroutines.
+The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoStorageConfig as a parameter to control the behavior of the MongoDB storage backend and manage the worker goroutines.
 
-This function is typically called at the start of the program to set up the MongoDB configuration and prepare the worker goroutines for article storage, deletion, and reading.
+ - This function is typically called at the start of the program to set up the MongoDB configuration and prepare the worker goroutines.
 
-After calling this function, the main program can use the following channels to enqueue articles for deletion, insertion, and reads:
+ - By passing the cfg pointer to Load_MongoDB, the function can directly modify the configuration values in the provided MongoStorageConfig object.
 
-- `Mongo_Delete_queue`: This channel is used to enqueue articles for deletion, specifying their corresponding hashes, which will be processed by the delete worker goroutines.
-- `Mongo_Insert_queue`: This channel is used to enqueue articles for insertion as `MongoArticle` instances, which will be processed by the insert worker goroutines. The `testAfterInsert` flag controls whether a test is performed after each article insertion, although specific details of this test are not provided in the code.
-- `Mongo_Reader_queue`: This channel is used to enqueue read requests for articles, which will be processed by the reader worker goroutines. This allows concurrent reading of articles from the MongoDB collections.
+ - After calling this function, the main program can use the following channels to enqueue articles for deletion, insertion, and read request:
+
+ - `Mongo_Delete_queue`: This channel is used to enqueue articles for deletion, specifying their corresponding hashes, which will be processed by the delete worker goroutines.
+ - `Mongo_Insert_queue`: This channel is used to enqueue articles for insertion as `MongoArticle` instances, which will be processed by the insert worker goroutines. The `TestAfterInsert` flag controls whether a test is performed after each article insertion, although specific details of this test are not provided in the code.
+ - `Mongo_Reader_queue`: This channel is used to enqueue read requests for articles, which will be processed by the reader worker goroutines. This allows concurrent reading of articles from the MongoDB collections.
 
 These channels enable communication between the main program and the worker goroutines, allowing for concurrent handling of article deletions, insertions, and reading operations.
 
-The integer parameters delWorker, insWorker, and getWorker determine the level of concurrency for article deletion, insertion, and read operations, respectively.
+The integer parameters DelWorker, InsWorker, and GetWorker determine the level of concurrency for article deletion, insertion, and read operations, respectively.
 
-The integer parameters `delQueue`, `insQueue`, and `getQueue` control the length of the respective channels to manage buffering of requests before the send operation blocks.
+The integer parameters `DelQueue`, `InsQueue`, and `GetQueue` control the length of the respective channels to manage buffering of requests before the send operation blocks.
 
 # Load_MongoDB: Parameters
 You can adjust the number of worker goroutines and queue sizes based on your application's requirements and the available resources.
 
-- `mongoURI` (string): A string representing the MongoDB connection URI. It should include the necessary authentication details and the address of the MongoDB server.
+- `MongoURI` (string): A string representing the MongoDB connection URI. It should include the necessary authentication details and the address of the MongoDB server.
 
-- `mongoDatabaseName` (string): A string representing the name of the MongoDB database where the articles will be stored and retrieved from.
+- `MongoDatabaseName` (string): A string representing the name of the MongoDB database where the articles will be stored and retrieved from.
 
-- `mongoCollection` (string): A string representing the name of the collection within the database where the articles will be stored.
+- `MongoCollection` (string): A string representing the name of the collection within the database where the articles will be stored.
 
-- `mongoTimeout` (int64): A duration in milliseconds that defines the timeout for a connection attempt to the MongoDB server. If the connection is not successful within this duration, it will time out.
+- `MongoTimeout` (int64): A duration in milliseconds that defines the timeout for a connection attempt to the MongoDB server. If the connection is not successful within this duration, it will time out.
 
-- `delWorker` (int): The number of worker goroutines to handle article deletions. It determines the level of concurrency for deletion operations. The delWorker parameter specifies the number of worker goroutines dedicated to handling article deletions. This parameter determines the level of concurrency for deletion operations. More delWorker values can improve the speed at which articles are deleted from the database.
+- `DelWorker` (int): The number of worker goroutines to handle article deletions. It determines the level of concurrency for deletion operations. The DelWorker parameter specifies the number of worker goroutines dedicated to handling article deletions. This parameter determines the level of concurrency for deletion operations. More DelWorker values can improve the speed at which articles are deleted from the database.
 
-- `delQueue` (int): The size of the delete queue. It specifies how many delete requests can be buffered before the send operation blocks. If delQueue is 0 or negative, a default value will be used. The delQueue parameter sets the maximum number of article deletion requests that can be buffered before the worker goroutines start processing them. When the number of articles to delete exceeds this limit, the send operation on the Mongo_Delete_queue channel will block until space becomes available in the queue.
+- `DelQueue` (int): The size of the delete queue. It specifies how many delete requests can be buffered before the send operation blocks. If DelQueue is 0 or negative, a default value will be used. The DelQueue parameter sets the maximum number of article deletion requests that can be buffered before the worker goroutines start processing them. When the number of articles to delete exceeds this limit, the send operation on the Mongo_Delete_queue channel will block until space becomes available in the queue.
 
-- `insWorker` (int): The number of worker goroutines to handle article insertions. It determines the level of concurrency for insertion operations. The insWorker parameter determines the number of worker goroutines assigned to handle article insertions. This parameter controls the concurrency for insertion operations, allowing multiple articles to be inserted simultaneously.
+- `InsWorker` (int): The number of worker goroutines to handle article insertions. It determines the level of concurrency for insertion operations. The InsWorker parameter determines the number of worker goroutines assigned to handle article insertions. This parameter controls the concurrency for insertion operations, allowing multiple articles to be inserted simultaneously.
 
-- `insQueue` (int): The size of the insert queue. It specifies how many article insertion requests can be buffered before the send operation blocks. If insQueue is 0 or negative, a default value will be used. The insQueue parameter specifies the maximum number of article insertion requests that can be buffered in the queue before the worker goroutines process them. If the number of pending insertions exceeds this limit, the send operation on the Mongo_Insert_queue channel will block.
+- `InsQueue` (int): The size of the insert queue. It specifies how many article insertion requests can be buffered before the send operation blocks. If InsQueue is 0 or negative, a default value will be used. The InsQueue parameter specifies the maximum number of article insertion requests that can be buffered in the queue before the worker goroutines process them. If the number of pending insertions exceeds this limit, the send operation on the Mongo_Insert_queue channel will block.
 
-- `getWorker` (int): The number of worker goroutines to handle article reads. It determines the level of concurrency for read operations. The getWorker parameter sets the number of worker goroutines responsible for handling article reads. This parameter controls the level of concurrency for read operations, enabling multiple read requests to be processed concurrently.
+- `GetWorker` (int): The number of worker goroutines to handle article reads. It determines the level of concurrency for read operations. The GetWorker parameter sets the number of worker goroutines responsible for handling article reads. This parameter controls the level of concurrency for read operations, enabling multiple read requests to be processed concurrently.
 
-- `getQueue` (int): The size of the read queue. It specifies how many read requests can be buffered before the send operation blocks. If getQueue is 0 or negative, a default value will be used. The getQueue parameter defines the maximum length of the read request queue. When the number of read requests exceeds this limit, the send operation on the Mongo_Reader_queue channel will block until space becomes available.
+- `GetQueue` (int): The size of the read queue. It specifies how many read requests can be buffered before the send operation blocks. If GetQueue is 0 or negative, a default value will be used. The GetQueue parameter defines the maximum length of the read request queue. When the number of read requests exceeds this limit, the send operation on the Mongo_Reader_queue channel will block until space becomes available.
 
-- `testAfterInsert` (bool): A flag indicating whether to perform a test after an article insertion. The specific test details are not provided in the function, and the flag can be used for application-specific testing purposes.
+- `TestAfterInsert` (bool): A flag indicating whether to perform a test after an article insertion. The specific test details are not provided in the function, and the flag can be used for application-specific testing purposes.
 
 
 # MongoDB Storage Configuration
@@ -83,35 +80,35 @@ These constants define various settings used when no specific values are provide
 
 ## Default MongoDB Connection
 
-- `DefaultMongoUri`: The default MongoDB connection string used when no URI is provided. It points to `mongodb://localhost:27017`, indicating the MongoDB server is running on the local machine on the default port 27017.
+ - `DefaultMongoURI`: The default MongoDB connection string used when no URI is provided. It points to `mongodb://localhost:27017`, indicating the MongoDB server is running on the local machine on the default port 27017.
 
 ## Default Database and Collection Names
 
-- `DefaultMongoDatabaseName`: The default name of the MongoDB database used when no database name is provided. It is set to "nntp" by default.
+ - `DefaultMongoDatabaseName`: The default name of the MongoDB database used when no database name is provided. It is set to "nntp" by default.
 
-- `DefaultMongoCollection`: The default name of the MongoDB collection used when no collection name is provided. The collection name is set to "articles" by default.
+ - `DefaultMongoCollection`: The default name of the MongoDB collection used when no collection name is provided. The collection name is set to "articles" by default.
 
 ## Default MongoDB Timeout
 
-- `DefaultMongoTimeout`: The default timeout value (in seconds) for connecting to MongoDB. The timeout is set to 15 seconds.
+ - `DefaultMongoTimeout`: The default timeout value (in seconds) for connecting to MongoDB. The timeout is set to 15 seconds.
 
 ## Default Worker and Queue Settings
 
-- `DefaultDelWorker`: The number of `DeleteWorker` instances to start by default. It is set to 1.
+ - `DefaultDelWorker`: The number of `DeleteWorker` instances to start by default. It is set to 1.
 
-- `DefaultDelQueue`: The number of delete requests allowed to be queued. It is set to 2.
+ - `DefaultDelQueue`: The number of delete requests allowed to be queued. It is set to 2.
 
-- `DefaultDeleteBatchsize`: The number of Msgidhashes a `DeleteWorker` will cache before deleting to batch into one process. It is set to 1.
+ - `DefaultDeleteBatchsize`: The number of Msgidhashes a `DeleteWorker` will cache before deleting to batch into one process. It is set to 1.
 
-- `DefaultInsWorker`: The number of `InsertWorker` instances to start by default. It is set to 1.
+ - `DefaultInsWorker`: The number of `InsertWorker` instances to start by default. It is set to 1.
 
-- `DefaultInsQueue`: The number of insert requests allowed to be queued. It is set to 2.
+ - `DefaultInsQueue`: The number of insert requests allowed to be queued. It is set to 2.
 
-- `DefaultInsertBatchsize`: The number of articles an `InsertWorker` will cache before inserting to batch into one process. It is set to 1.
+ - `DefaultInsertBatchsize`: The number of articles an `InsertWorker` will cache before inserting to batch into one process. It is set to 1.
 
-- `DefaultGetWorker`: The number of `ReaderWorker` instances to start by default. It is set to 1.
+ - `DefaultGetWorker`: The number of `ReaderWorker` instances to start by default. It is set to 1.
 
-- `DefaultGetQueue`: The total queue length for all `ReaderWorker` instances. It is set to 2.
+ - `DefaultGetQueue`: The total queue length for all `ReaderWorker` instances. It is set to 2.
 
 Please note that these default values can be adjusted according to your specific requirements and available system resources.
 
@@ -211,7 +208,7 @@ The MongoWorker_Insert is designed to run as a goroutine, and to optimize the in
 
  - This concurrent approach enables parallel insertion of articles, leading to improved performance and reduced insert times, especially when dealing with a large number of articles.
 
- - The main program can control the level of concurrency by setting the number of MongoWorker_Insert instances (insWorker) to be launched. Each worker will independently process insertion requests, making it possible to efficiently insert multiple articles simultaneously.
+ - The main program can control the level of concurrency by setting the number of MongoWorker_Insert instances (InsWorker) to be launched. Each worker will independently process insertion requests, making it possible to efficiently insert multiple articles simultaneously.
 
  - By utilizing multiple MongoWorker_Insert goroutines, the system can take full advantage of available resources, effectively distributing the write workload across multiple threads, cores, or even machines if necessary. This concurrency model helps to avoid bottlenecks and ensures that write operations are executed efficiently, providing a responsive and performant writing experience for the application.
 
@@ -234,7 +231,7 @@ The MongoWorker_Insert is designed to run as a goroutine, and to optimize the in
 
 # MongoWorker_Delete
 
-Similar to the MongoWorker_Insert, the MongoWorker_Delete is designed to operate as a goroutine with the potential for concurrent execution. By spawning multiple MongoWorker_Delete instances (delWorker), the system can take advantage of parallel processing to efficiently handle article deletions from the MongoDB database.
+Similar to the MongoWorker_Insert, the MongoWorker_Delete is designed to operate as a goroutine with the potential for concurrent execution. By spawning multiple MongoWorker_Delete instances (DelWorker), the system can take advantage of parallel processing to efficiently handle article deletions from the MongoDB database.
 
  - The concurrent nature of the MongoWorker_Delete allows for multiple worker goroutines to process article deletion requests concurrently. Each worker listens to the Mongo_Delete_queue, which holds article hashes waiting to be deleted. As soon as a hash becomes available in the queue, a worker dequeues it and initiates the deletion process.
 
@@ -261,7 +258,7 @@ The MongoWorker_Reader is designed to run as a goroutine, and to optimize the re
 
  - This concurrent approach enables parallel retrieval of articles, leading to improved performance and reduced read times, especially when dealing with a large number of articles.
 
- - The main program can control the level of concurrency by setting the number of MongoWorker_Reader instances (getWorker) to be launched.
+ - The main program can control the level of concurrency by setting the number of MongoWorker_Reader instances (GetWorker) to be launched.
 
  - Each worker will independently process read requests, making it possible to efficiently retrieve multiple articles simultaneously.
 
