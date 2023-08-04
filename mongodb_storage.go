@@ -1373,7 +1373,7 @@ func calculateExponentialBackoff(attempt int) time.Duration {
 // The function then repeats this process in an infinite loop with a N second sleep between iterations.
 // The purpose of this function is to simulate random up/down requests to control the worker
 // function not written by AI.
-// ./mongodbtest -MongoWorker_UpDN_Random -test-num 0
+// ./mongodbtest -randomUpDN -test-num 0
 func MongoWorker_UpDN_Random() {
 	isleep := 1
 	log.Print("Start mongostorage.MongoWorker_UpDN_Random")
