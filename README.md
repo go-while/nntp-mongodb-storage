@@ -178,17 +178,17 @@ By utilizing multiple MongoInsertWorker goroutines, the system can take full adv
 
 - It operates as a worker goroutine, processing articles from a queue (Mongo_Insert_queue) and inserting them into the specified MongoDB collection.
 
-### Initialization: Before starting the insertion process, the MongoInsertWorker is created and initialized. It establishes a connection to the MongoDB database using the provided URI and database name.
+ - Initialization: Before starting the insertion process, the MongoInsertWorker is created and initialized. It establishes a connection to the MongoDB database using the provided URI and database name.
 
-### Article Insertion: The worker listens to the Mongo_Insert_queue, which holds articles waiting to be inserted. As soon as an article becomes available in the queue, the worker dequeues it and starts the insertion process.
+ - Article Insertion: The worker listens to the Mongo_Insert_queue, which holds articles waiting to be inserted. As soon as an article becomes available in the queue, the worker dequeues it and starts the insertion process.
 
-### Duplicate Check: Before inserting the article, the worker performs a duplicate check based on the MessageIDHash of the article. It queries the MongoDB collection to check if an article with the same MessageIDHash already exists. This is to avoid inserting duplicate articles in the database.
+ - Duplicate Check: Before inserting the article, the worker performs a duplicate check based on the MessageIDHash of the article. It queries the MongoDB collection to check if an article with the same MessageIDHash already exists. This is to avoid inserting duplicate articles in the database.
 
-### Compression (Optional): Depending on the test case and configuration, the MongoInsertWorker may apply compression to the article's header and body before insertion. If compression is required, it compresses the data using either gzip or zlib compression algorithms.
+ - Compression (Optional): Depending on the test case and configuration, the MongoInsertWorker may apply compression to the article's header and body before insertion. If compression is required, it compresses the data using either gzip or zlib compression algorithms.
 
-### Insertion: After the duplicate check and optional compression, the worker inserts the article into the specified MongoDB collection.
+ - Insertion: After the duplicate check and optional compression, the worker inserts the article into the specified MongoDB collection.
 
-### Logging: During the insertion process, the worker logs relevant information such as the raw size of the article, the size after compression (if applied), and the success or failure of the insertion.
+ - Logging: During the insertion process, the worker logs relevant information such as the raw size of the article, the size after compression (if applied), and the success or failure of the insertion.
 
 
 # MongoDeleteWorker
@@ -203,15 +203,15 @@ With multiple MongoDeleteWorker instances running simultaneously, the applicatio
 
 - It operates as a worker goroutine, processing article hashes from a queue (Mongo_Delete_queue) and deleting the corresponding articles from the specified MongoDB collection.
 
-### Initialization: Before starting the deletion process, the MongoDeleteWorker is created and initialized. It establishes a connection to the MongoDB database using the provided URI and database name.
+ - Initialization: Before starting the deletion process, the MongoDeleteWorker is created and initialized. It establishes a connection to the MongoDB database using the provided URI and database name.
 
-### Article Deletion: The worker listens to the Mongo_Delete_queue, which holds article hashes waiting to be deleted. As soon as a hash becomes available in the queue, the worker dequeues it and starts the deletion process.
+ - Article Deletion: The worker listens to the Mongo_Delete_queue, which holds article hashes waiting to be deleted. As soon as a hash becomes available in the queue, the worker dequeues it and starts the deletion process.
 
-### Article Lookup: The worker uses the provided article hash to query the MongoDB collection and find the article with the corresponding MessageIDHash.
+ - Article Lookup: The worker uses the provided article hash to query the MongoDB collection and find the article with the corresponding MessageIDHash.
 
-### Deletion: Once the article is located based on the MessageIDHash, the worker proceeds to delete it from the MongoDB collection.
+ - Deletion: Once the article is located based on the MessageIDHash, the worker proceeds to delete it from the MongoDB collection.
 
-### Logging: During the deletion process, the worker logs relevant information such as the article hash being processed and whether the deletion was successful or encountered an error.
+ - Logging: During the deletion process, the worker logs relevant information such as the article hash being processed and whether the deletion was successful or encountered an error.
 
 
 # MongoReaderWorker
@@ -232,13 +232,13 @@ By utilizing multiple MongoReaderWorker goroutines, the system can take full adv
 
 - The retrieved articles are then sent back to the main program through a return channel, allowing efficient and concurrent reading of articles from the database.
 
-### Initialization: Before starting the reading process, the MongoReaderWorker is created and initialized. It establishes a connection to the MongoDB database using the provided URI and database name.
+ - Initialization: Before starting the reading process, the MongoReaderWorker is created and initialized. It establishes a connection to the MongoDB database using the provided URI and database name.
 
-### Read Operations: The worker listens to the Mongo_Reader_queue, which holds read requests waiting to be processed. Each read request is represented as a `MongoReadRequest` struct containing a list of article hashes (`Msgidhashes`) and a return channel (`RetChan`) to send back the retrieved articles. As soon as a read request becomes available in the queue, the worker dequeues it and starts the reading process.
+ - Read Operations: The worker listens to the Mongo_Reader_queue, which holds read requests waiting to be processed. Each read request is represented as a `MongoReadRequest` struct containing a list of article hashes (`Msgidhashes`) and a return channel (`RetChan`) to send back the retrieved articles. As soon as a read request becomes available in the queue, the worker dequeues it and starts the reading process.
 
-### Article Retrieval: The worker uses the provided list of article hashes (`Msgidhashes`) to query the MongoDB collection and retrieve the corresponding articles. It searches for articles with matching `MessageIDHash` values in the collection.
+ - Article Retrieval: The worker uses the provided list of article hashes (`Msgidhashes`) to query the MongoDB collection and retrieve the corresponding articles. It searches for articles with matching `MessageIDHash` values in the collection.
 
-### Return Results: Once the articles are retrieved, the worker sends them back to the main program through the `RetChan` channel of the corresponding `MongoReadRequest` struct. This allows the main program to receive the requested articles and process them further.
+ - Return Results: Once the articles are retrieved, the worker sends them back to the main program through the `RetChan` channel of the corresponding `MongoReadRequest` struct. This allows the main program to receive the requested articles and process them further.
 
 
 
