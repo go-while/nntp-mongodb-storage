@@ -168,15 +168,15 @@ Overall, the `MongoArticle` struct defines the schema for articles to be stored 
 
 The MongoInsertWorker is designed to run as a goroutine, and to optimize the insert process, multiple workers can be spawned concurrently.
 
-This concurrent approach enables parallel insertion of articles, leading to improved performance and reduced insert times, especially when dealing with a large number of articles.
+ - This concurrent approach enables parallel insertion of articles, leading to improved performance and reduced insert times, especially when dealing with a large number of articles.
 
-The main program can control the level of concurrency by setting the number of MongoInsertWorker instances (insWorker) to be launched. Each worker will independently process insertion requests, making it possible to efficiently insert multiple articles simultaneously.
+ - The main program can control the level of concurrency by setting the number of MongoInsertWorker instances (insWorker) to be launched. Each worker will independently process insertion requests, making it possible to efficiently insert multiple articles simultaneously.
 
-By utilizing multiple MongoInsertWorker goroutines, the system can take full advantage of available resources, effectively distributing the write workload across multiple threads, cores, or even machines if necessary. This concurrency model helps to avoid bottlenecks and ensures that write operations are executed efficiently, providing a responsive and performant writing experience for the application.
+ - By utilizing multiple MongoInsertWorker goroutines, the system can take full advantage of available resources, effectively distributing the write workload across multiple threads, cores, or even machines if necessary. This concurrency model helps to avoid bottlenecks and ensures that write operations are executed efficiently, providing a responsive and performant writing experience for the application.
 
-- The MongoInsertWorker is a component of the mongostorage package responsible for handling the insertion of articles into a MongoDB database.
+ - The MongoInsertWorker is a component of the mongostorage package responsible for handling the insertion of articles into a MongoDB database.
 
-- It operates as a worker goroutine, processing articles from a queue (Mongo_Insert_queue) and inserting them into the specified MongoDB collection.
+ - It operates as a worker goroutine, processing articles from a queue (Mongo_Insert_queue) and inserting them into the specified MongoDB collection.
 
  - Initialization: Before starting the insertion process, the MongoInsertWorker is created and initialized. It establishes a connection to the MongoDB database using the provided URI and database name.
 
@@ -195,13 +195,13 @@ By utilizing multiple MongoInsertWorker goroutines, the system can take full adv
 
 Similar to the MongoInsertWorker, the MongoDeleteWorker is designed to operate as a goroutine with the potential for concurrent execution. By spawning multiple MongoDeleteWorker instances (delWorker), the system can take advantage of parallel processing to efficiently handle article deletions from the MongoDB database.
 
-The concurrent nature of the MongoDeleteWorker allows for multiple worker goroutines to process article deletion requests concurrently. Each worker listens to the Mongo_Delete_queue, which holds article hashes waiting to be deleted. As soon as a hash becomes available in the queue, a worker dequeues it and initiates the deletion process.
+ - The concurrent nature of the MongoDeleteWorker allows for multiple worker goroutines to process article deletion requests concurrently. Each worker listens to the Mongo_Delete_queue, which holds article hashes waiting to be deleted. As soon as a hash becomes available in the queue, a worker dequeues it and initiates the deletion process.
 
-With multiple MongoDeleteWorker instances running simultaneously, the application can efficiently handle a high volume of article deletion requests. This is particularly beneficial when dealing with large datasets or frequently changing data.
+ - With multiple MongoDeleteWorker instances running simultaneously, the application can efficiently handle a high volume of article deletion requests. This is particularly beneficial when dealing with large datasets or frequently changing data.
 
-- The MongoDeleteWorker is a component of the mongostorage package responsible for handling the deletion of articles from a MongoDB database.
+ - The MongoDeleteWorker is a component of the mongostorage package responsible for handling the deletion of articles from a MongoDB database.
 
-- It operates as a worker goroutine, processing article hashes from a queue (Mongo_Delete_queue) and deleting the corresponding articles from the specified MongoDB collection.
+ - It operates as a worker goroutine, processing article hashes from a queue (Mongo_Delete_queue) and deleting the corresponding articles from the specified MongoDB collection.
 
  - Initialization: Before starting the deletion process, the MongoDeleteWorker is created and initialized. It establishes a connection to the MongoDB database using the provided URI and database name.
 
@@ -218,13 +218,13 @@ With multiple MongoDeleteWorker instances running simultaneously, the applicatio
 
 The MongoReaderWorker is designed to run as a goroutine, and to optimize the reading process, multiple workers can be spawned concurrently.
 
-This concurrent approach enables parallel retrieval of articles, leading to improved performance and reduced read times, especially when dealing with a large number of articles.
+ - This concurrent approach enables parallel retrieval of articles, leading to improved performance and reduced read times, especially when dealing with a large number of articles.
 
-The main program can control the level of concurrency by setting the number of MongoReaderWorker instances (getWorker) to be launched.
+ - The main program can control the level of concurrency by setting the number of MongoReaderWorker instances (getWorker) to be launched.
 
-Each worker will independently process read requests, making it possible to efficiently retrieve multiple articles simultaneously.
+ - Each worker will independently process read requests, making it possible to efficiently retrieve multiple articles simultaneously.
 
-By utilizing multiple MongoReaderWorker goroutines, the system can take full advantage of available resources, effectively distributing the read workload across multiple threads, cores, or even machines if necessary. This concurrency model helps to avoid bottlenecks and ensures that read operations are executed efficiently, providing a responsive and performant reading experience for the application.
+ - By utilizing multiple MongoReaderWorker goroutines, the system can take full advantage of available resources, effectively distributing the read workload across multiple threads, cores, or even machines if necessary. This concurrency model helps to avoid bottlenecks and ensures that read operations are executed efficiently, providing a responsive and performant reading experience for the application.
 
 - The MongoReaderWorker is a component of the mongostorage package responsible for handling read/get requests for articles to retrieve from a MongoDB database.
 
