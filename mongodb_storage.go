@@ -80,9 +80,9 @@ var (
 	// pass a bool [true|false] to the UpDN_ channels and workers will start or stop
 	// external access via: mongostorage.UpDn_***_Worker_chan
 	UpDn_StopAll_Worker_chan = make(chan bool, 1)
-	UpDn_Reader_Worker_chan = make(chan bool, 1)
-	UpDn_Delete_Worker_chan = make(chan bool, 1)
-	UpDn_Insert_Worker_chan = make(chan bool, 1)
+	UpDn_Reader_Worker_chan  = make(chan bool, 1)
+	UpDn_Delete_Worker_chan  = make(chan bool, 1)
+	UpDn_Insert_Worker_chan  = make(chan bool, 1)
 	// internal channels to notify workers to stop
 	stop_reader_worker_chan = make(chan int, 1)
 	stop_delete_worker_chan = make(chan int, 1)
@@ -128,24 +128,26 @@ var (
 //
 // Example Usage:
 // maxID := iStop_Worker("reader")
-// if wid > maxID {
-//     return // stop Worker
-// }
+//
+//	if wid > maxID {
+//	    return // stop Worker
+//	}
+//
 // function not written by AI.
 func iStop_Worker(wType string) int {
 	var maxwid int
 	switch wType {
-		case "reader":
-			maxwid = <- stop_reader_worker_chan // read value
-			stop_reader_worker_chan <- maxwid // park value again
-		case "delete":
-			maxwid = <- stop_delete_worker_chan // read value
-			stop_delete_worker_chan <- maxwid // park value again
-		case "insert":
-			maxwid = <- stop_insert_worker_chan // read value
-			stop_insert_worker_chan <- maxwid // park value again
-		default:
-			log.Printf("Error iStop_Worker unknown Wtype=%s", wType)
+	case "reader":
+		maxwid = <-stop_reader_worker_chan // read value
+		stop_reader_worker_chan <- maxwid  // park value again
+	case "delete":
+		maxwid = <-stop_delete_worker_chan // read value
+		stop_delete_worker_chan <- maxwid  // park value again
+	case "insert":
+		maxwid = <-stop_insert_worker_chan // read value
+		stop_insert_worker_chan <- maxwid  // park value again
+	default:
+		log.Printf("Error iStop_Worker unknown Wtype=%s", wType)
 	} // end switch wType
 	return maxwid
 } // fund end iStop_Worker
@@ -173,36 +175,36 @@ func iStop_Worker(wType string) int {
 func updn_Set(wType string, maxwid int, delBatch int, insBatch int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64, testAfterInsert bool) {
 	var oldval int
 	switch wType {
-		case "reader":
-			oldval = <- stop_reader_worker_chan // read old value
-			stop_reader_worker_chan <- maxwid // set new value
-		case "delete":
-			oldval = <- stop_delete_worker_chan // read old value
-			stop_delete_worker_chan <- maxwid // set new value
-		case "insert":
-			oldval = <- stop_insert_worker_chan // read old value
-			stop_insert_worker_chan <- maxwid // set new value
-		default:
-			log.Printf("Error updn_Set unknown Wtype=%s", wType)
+	case "reader":
+		oldval = <-stop_reader_worker_chan // read old value
+		stop_reader_worker_chan <- maxwid  // set new value
+	case "delete":
+		oldval = <-stop_delete_worker_chan // read old value
+		stop_delete_worker_chan <- maxwid  // set new value
+	case "insert":
+		oldval = <-stop_insert_worker_chan // read old value
+		stop_insert_worker_chan <- maxwid  // set new value
+	default:
+		log.Printf("Error updn_Set unknown Wtype=%s", wType)
 	} // end switch wType
 
 	if maxwid > oldval {
 		// start new worker routines for wType
 		switch wType {
-			case "reader":
-				for i := oldval+1; i <= maxwid; i++ {
-					go MongoReaderWorker(i, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
-				}
-			case "delete":
-				for i := oldval+1; i <= maxwid; i++ {
-					go MongoDeleteWorker(i, delBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
-				}
-			case "insert":
-				for i := oldval+1; i <= maxwid; i++ {
-					go MongoInsertWorker(i, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
-				}
-			default:
-				log.Printf("Error updn_Set unknown Wtype=%s", wType)
+		case "reader":
+			for i := oldval + 1; i <= maxwid; i++ {
+				go MongoReaderWorker(i, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
+			}
+		case "delete":
+			for i := oldval + 1; i <= maxwid; i++ {
+				go MongoDeleteWorker(i, delBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
+			}
+		case "insert":
+			for i := oldval + 1; i <= maxwid; i++ {
+				go MongoInsertWorker(i, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
+			}
+		default:
+			log.Printf("Error updn_Set unknown Wtype=%s", wType)
 		} // end switch wType
 	}
 	log.Printf("updn_Set wType=%s oldval=%d maxwid=%d", oldval, maxwid)
@@ -238,36 +240,36 @@ func Worker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBatch in
 	// The goroutine also logs a message every 5 seconds to indicate that it is alive and running.
 	// This functionality allows dynamically scaling the number of worker goroutines based on received up/down requests
 	// while keeping track of their status and allowing controlled termination.
-	go func(){
+	go func() {
 		timeout := time.After(atimeout)
 		for {
 			select {
-			case <- timeout:
+			case <-timeout:
 				timeout = time.After(atimeout)
 				log.Printf("UpDn_StopAll_Worker_chan alive")
 
-			case retbool := <- UpDn_StopAll_Worker_chan:
+			case retbool := <-UpDn_StopAll_Worker_chan:
 				switch retbool {
-					case true:
-						// pass a false to all UpDn_*_Worker channels to stop them
-						for i:=1;i<=getWorker; i++ {
-							UpDn_Reader_Worker_chan <- false
-						}
-						for i:=1;i<=delWorker; i++ {
-							UpDn_Delete_Worker_chan <- false
-						}
-						for i:=1;i<=insWorker; i++ {
-							UpDn_Insert_Worker_chan <- false
-						}
-					case false:
-						// pass here, will not do anything
-						// to stop all workers
-						//   pass a single true to UpDn_StopAll_Worker_chan
+				case true:
+					// pass a false to all UpDn_*_Worker channels to stop them
+					for i := 1; i <= getWorker; i++ {
+						UpDn_Reader_Worker_chan <- false
+					}
+					for i := 1; i <= delWorker; i++ {
+						UpDn_Delete_Worker_chan <- false
+					}
+					for i := 1; i <= insWorker; i++ {
+						UpDn_Insert_Worker_chan <- false
+					}
+				case false:
+					// pass here, will not do anything
+					// to stop all workers
+					//   pass a single true to UpDn_StopAll_Worker_chan
 				} // end switch retbool
 			} // end select
 		} // end for
 	}()
-	time.Sleep(time.Second/1000)
+	time.Sleep(time.Second / 1000)
 
 	// The anonymous goroutine continuously listens to the UpDn_Reader_Worker_chan channel for messages.
 	// If a "true" value is received, it increments the getWorker variable to increase the number of reader worker goroutines.
@@ -281,22 +283,22 @@ func Worker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBatch in
 		timeout := time.After(atimeout)
 		for {
 			select {
-			case <- timeout:
+			case <-timeout:
 				timeout = time.After(atimeout)
 				log.Printf("UpDn_Reader_Worker_chan alive")
 
-			case retbool := <- UpDn_Reader_Worker_chan:
+			case retbool := <-UpDn_Reader_Worker_chan:
 				switch retbool {
-					case true:
-						getWorker++
-					case false:
-						getWorker--
+				case true:
+					getWorker++
+				case false:
+					getWorker--
 				} // end switch retbool
 				updn_Set(wType, getWorker, -1, -1, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
 			} // end select
 		} // end for
 	}(getWorker, "reader")
-	time.Sleep(time.Second/1000)
+	time.Sleep(time.Second / 1000)
 
 	// The anonymous goroutine continuously listens to the UpDn_Delete_Worker_chan channel for messages.
 	// If a "true" value is received, it increments the delWorker variable to increase the number of delete worker goroutines.
@@ -310,22 +312,22 @@ func Worker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBatch in
 		timeout := time.After(atimeout)
 		for {
 			select {
-			case <- timeout:
+			case <-timeout:
 				timeout = time.After(atimeout)
 				log.Printf("UpDn_Delete_Worker_chan alive")
 
-			case retbool := <- UpDn_Delete_Worker_chan:
+			case retbool := <-UpDn_Delete_Worker_chan:
 				switch retbool {
-					case true:
-						delWorker++
-					case false:
-						delWorker--
+				case true:
+					delWorker++
+				case false:
+					delWorker--
 				} // end switch retbool
 				updn_Set(wType, delWorker, delBatch, -1, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
 			} // end select
 		} // end for
 	}(delWorker, "delete")
-	time.Sleep(time.Second/1000)
+	time.Sleep(time.Second / 1000)
 
 	// The anonymous goroutine continuously listens to the UpDn_Insert_Worker_chan channel for messages.
 	// If a "true" value is received, it increments the insWorker variable to increase the number of insert worker goroutines.
@@ -339,22 +341,22 @@ func Worker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBatch in
 		timeout := time.After(atimeout)
 		for {
 			select {
-			case <- timeout:
+			case <-timeout:
 				timeout = time.After(atimeout)
 				log.Printf("UpDn_Insert_Worker_chan alive")
 
-			case retbool := <- UpDn_Insert_Worker_chan:
+			case retbool := <-UpDn_Insert_Worker_chan:
 				switch retbool {
-					case true:
-						insWorker++
-					case false:
-						insWorker--
+				case true:
+					insWorker++
+				case false:
+					insWorker--
 				} // end switch retbool
 				updn_Set(wType, insWorker, -1, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
 			} // end select
 		} // end for
 	}(insWorker, "insert")
-	time.Sleep(time.Second/1000)
+	time.Sleep(time.Second / 1000)
 
 } // end func Worker_UpDn_Scaler
 
@@ -370,15 +372,15 @@ func Worker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBatch in
 // - Enc: An integer representing the encoding type of the article (mapped to the "enc" field in MongoDB).
 // - Found: A boolean indicating whether the article was found during retrieval (not mapped to MongoDB).
 type MongoArticle struct {
-	MessageIDHash *string   `bson:"_id"`
-	MessageID     *string   `bson:"msgid"`
+	MessageIDHash *string `bson:"_id"`
+	MessageID     *string `bson:"msgid"`
 	//Newsgroups    []string `bson:"newsgroups"`
-	Head          []byte   `bson:"head"`
-	Headsize      int      `bson:"hs"`
-	Body          []byte   `bson:"body"`
-	Bodysize      int      `bson:"bs"`
-	Enc           int      `bson:"enc"`
-	Found         bool
+	Head     []byte `bson:"head"`
+	Headsize int    `bson:"hs"`
+	Body     []byte `bson:"body"`
+	Bodysize int    `bson:"bs"`
+	Enc      int    `bson:"enc"`
+	Found    bool
 } // end type MongoArticle struct
 
 // MongoReadReqReturn represents the return value for a read request in MongoDB.
@@ -390,11 +392,11 @@ type MongoReadReqReturn struct {
 
 // MongoReadRequest represents a read request for fetching articles from MongoDB.
 // It contains the following fields:
-// - Msgidhashes: A slice of messageIDHashes for which articles are requested.
-// - RetChan: A channel to receive the fetched articles as []*MongoArticle.
-//            The fetched articles will be sent through this channel upon successful retrieval.
-//            If an error occurs during the retrieval process, the channel will remain open but receive a nil slice.
-//            If the Msgidhashes slice is empty or nil, the channel will receive an empty slice ([]*MongoArticle{}).
+//   - Msgidhashes: A slice of messageIDHashes for which articles are requested.
+//   - RetChan: A channel to receive the fetched articles as []*MongoArticle.
+//     The fetched articles will be sent through this channel upon successful retrieval.
+//     If an error occurs during the retrieval process, the channel will remain open but receive a nil slice.
+//     If the Msgidhashes slice is empty or nil, the channel will receive an empty slice ([]*MongoArticle{}).
 type MongoReadRequest struct {
 	Msgidhashes []*string
 	RetChan     chan []*MongoArticle
@@ -626,8 +628,7 @@ forever:
 
 			if len_arts >= batchsize {
 				do_insert = true
-			} else
-			if is_timeout && len_arts > 0 && diff > mongoTimeout {
+			} else if is_timeout && len_arts > 0 && diff > mongoTimeout {
 				do_insert = true
 			}
 			if is_timeout {
@@ -743,8 +744,7 @@ forever:
 
 			if len_hashs >= batchsize {
 				do_delete = true
-			} else
-			if is_timeout && len_hashs > 0 && diff > mongoTimeout {
+			} else if is_timeout && len_hashs > 0 && diff > mongoTimeout {
 				do_delete = true
 			}
 			if is_timeout {
@@ -938,10 +938,10 @@ func MongoInsertManyArticles(ctx context.Context, collection *mongo.Collection, 
 		insert_articles = append(insert_articles, article)
 	}
 	/*
-		* Unordered Insert:
-	   *   If you set the ordered option to false, MongoDB will continue the insertMany operation even if a duplicate key is found.
-	   *   The operation will try to insert all the documents in the array, and duplicates will be ignored.
-	   *   The first occurrence of each unique _id will be inserted, and subsequent occurrences will be skipped.
+			* Unordered Insert:
+		   *   If you set the ordered option to false, MongoDB will continue the insertMany operation even if a duplicate key is found.
+		   *   The operation will try to insert all the documents in the array, and duplicates will be ignored.
+		   *   The first occurrence of each unique _id will be inserted, and subsequent occurrences will be skipped.
 	*/
 	opts := options.InsertMany().SetOrdered(false)
 	result, err := collection.InsertMany(ctx, insert_articles, opts)
@@ -1008,6 +1008,7 @@ func MongoDeleteManyArticles(ctx context.Context, collection *mongo.Collection, 
 // Returns:
 //   - context.Context: The updated context with an extended deadline.
 //   - context.CancelFunc: The cancel function associated with the updated context.
+//
 // function written by AI.
 func extendContextTimeout(ctx context.Context, cancel context.CancelFunc, mongoTimeout int64) (context.Context, context.CancelFunc) {
 	//log.Printf("extendContextTimeout")
@@ -1127,12 +1128,12 @@ func sliceContains(slice []string, target string) bool {
 // Otherwise, it returns false.
 // function written by AI.
 func isPStringInSlice(slice []*string, target *string) bool {
-    for _, s := range slice {
-        if s != nil && target != nil && *s == *target {
-            return true
-        }
-    }
-    return false
+	for _, s := range slice {
+		if s != nil && target != nil && *s == *target {
+			return true
+		}
+	}
+	return false
 } // end func isPStringInSlice
 
 // RetrieveHeadByMessageIDHash is a function that retrieves the "Head" data of an article from the MongoDB collection
