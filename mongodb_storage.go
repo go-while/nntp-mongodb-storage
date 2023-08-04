@@ -292,7 +292,9 @@ func MongoWorker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBat
 				case true:
 					getWorker++
 				case false:
-					getWorker--
+					if getWorker > 0 {
+						getWorker--
+					}
 				} // end switch retbool
 				updn_Set(wType, getWorker, -1, -1, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
 			} // end select
@@ -321,7 +323,9 @@ func MongoWorker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBat
 				case true:
 					delWorker++
 				case false:
-					delWorker--
+					if delWorker > 0 {
+						delWorker--
+					}
 				} // end switch retbool
 				updn_Set(wType, delWorker, delBatch, -1, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
 			} // end select
@@ -350,7 +354,9 @@ func MongoWorker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBat
 				case true:
 					insWorker++
 				case false:
-					insWorker--
+					if insWorker > 0 {
+						insWorker--
+					}
 				} // end switch retbool
 				updn_Set(wType, insWorker, -1, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
 			} // end select
@@ -1368,9 +1374,9 @@ func calculateExponentialBackoff(attempt int) time.Duration {
 // The purpose of this function is to simulate random up/down requests to control the worker
 // function not written by AI.
 // ./mongodbtest -randomUpDN -test-num 0
-func MongoWorker_RandomUpDN() {
+func MongoWorker_UpDN_Random() {
 	isleep := 5
-	log.Print("Start mongostorage.MongoWorker_RandomUpDN")
+	log.Print("Start mongostorage.MongoWorker_UpDN_Random")
 	for {
 		arandA := rand.Intn(2)
 		arandB := rand.Intn(4)
@@ -1384,23 +1390,23 @@ func MongoWorker_RandomUpDN() {
 		switch arandB {
 		case 0:
 			//wType = "reader"
-			log.Printf("~~ randomUpDN sending %t to UpDn_Reader_Worker_chan", sendbool)
+			log.Printf("~~ UpDN_Random sending %t to UpDn_Reader_Worker_chan", sendbool)
 			UpDn_Reader_Worker_chan <- sendbool
 		case 1:
 			//wType = "delete"
-			log.Printf("~~ randomUpDN sending %t to UpDn_Delete_Worker_chan", sendbool)
+			log.Printf("~~ UpDN_Random sending %t to UpDn_Delete_Worker_chan", sendbool)
 			UpDn_Delete_Worker_chan <- sendbool
 		case 2:
 			//wType = "insert"
-			log.Printf("~~ randomUpDN sending %t to UpDn_Insert_Worker_chan", sendbool)
+			log.Printf("~~ UpDN_Random sending %t to UpDn_Insert_Worker_chan", sendbool)
 			UpDn_Insert_Worker_chan <- sendbool
 		case 3:
 			//wType = "StopAll"
-			log.Printf("~~ randomUpDN sending %t to UpDn_StopAll_Worker_chan", sendbool)
+			log.Printf("~~ UpDN_Random sending %t to UpDn_StopAll_Worker_chan", sendbool)
 			UpDn_StopAll_Worker_chan <- sendbool
 		default:
 		}
 	}
-} // end func MongoWorker_RandomUpDN
+} // end func MongoWorker_UpDN_Random
 
 // EOF mongodb_storage.go
