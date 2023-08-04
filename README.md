@@ -25,7 +25,7 @@ The Load_MongoDB function is a part of the mongostorage package in the provided 
 
 Function Signature
 ```go
-func Load_MongoDB(mongoURI, dbName, collectionName string, timeout time.Duration, delWorker *MongoDeleteWorker, delQueue chan string, insWorker *MongoInsertWorker, insQueue chan MongoArticle, testAfterInsert bool)
+func Load_MongoDB(mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64, delWorker int, delQueue int, insWorker int, insQueue int, getQueue int, getWorker int, testAfterInsert bool)
 ```
 
 # Load_MongoDB Parameters
@@ -66,6 +66,7 @@ You can adjust the number of worker goroutines and queue sizes based on your app
 ```
 
 # Usage Load_MongoDB
+
 The Load_MongoDB function is typically called at the start of the program to set up the MongoDB configuration and prepare the worker goroutines for article storage and deletion.
 
 After calling this function, the main program can use the delQueue and insQueue channels to enqueue articles for deletion or insertion, respectively.
@@ -143,11 +144,14 @@ The `MongoArticle` struct is used as a container to hold article data before it 
 
 
 # MongoInsertWorker
+
 The MongoInsertWorker is a component of the mongostorage package that handles the insertion of articles into a MongoDB database.
 
 It operates as a worker goroutine, processing articles from a queue (Mongo_Insert_queue) and inserting them into the specified MongoDB collection.
 
+
 ## How MongoInsertWorker works
+
 Initialization: Before starting the insertion process, the MongoInsertWorker is created and initialized.
 
 It establishes a connection to the MongoDB database using the provided URI and database name.
@@ -168,14 +172,18 @@ Insertion: After the duplicate check and optional compression, the worker insert
 
 Logging: During the insertion process, the worker logs relevant information such as the raw size of the article, the size after compression (if applied), and the success or failure of the insertion.
 
+
 ## MongoInsertWorker Concurrency
+
 The MongoInsertWorker is designed to run as a goroutine.
 
 To optimize the insertion process, multiple workers can be spawned concurrently, allowing for parallel processing of articles.
 
 This concurrency can significantly improve the overall insertion performance, especially when dealing with a large number of articles.
 
+
 ## Usage MongoInsertWorker
+
 The MongoInsertWorker is usually employed in conjunction with the MongoInsertQueue (which holds articles to be inserted) and the main program.
 
 The main program enqueues articles into the Mongo_Insert_queue, and the MongoInsertWorker goroutine dequeues and processes them for insertion.
@@ -185,6 +193,7 @@ The main program enqueues articles into the Mongo_Insert_queue, and the MongoIns
 The MongoDeleteWorker is a key component of the mongostorage package responsible for handling the deletion of articles from a MongoDB database.
 
 It operates as a worker goroutine, processing article hashes from a queue (Mongo_Delete_queue) and deleting the corresponding articles from the specified MongoDB collection.
+
 
 ## How MongoDeleteWorker works
 Initialization: Before starting the deletion process, the MongoDeleteWorker is created and initialized.
@@ -201,10 +210,14 @@ Deletion: Once the article is located based on the MessageIDHash, the worker pro
 
 Logging: During the deletion process, the worker logs relevant information such as the article hash being processed and whether the deletion was successful or encountered an error.
 
+
 ## MongoDeleteWorker Concurrency
+
 The MongoDeleteWorker is designed to run as a goroutine. Multiple workers can be spawned concurrently to handle article deletions in parallel, which can improve overall deletion performance, especially for a large number of articles.
 
+
 ## Usage MongoDeleteWorker
+
 The MongoDeleteWorker is typically used along with the MongoDeleteQueue (which holds article hashes to be deleted) and the main program. The main program enqueues article hashes into the Mongo_Delete_queue, and the MongoDeleteWorker goroutine dequeues and processes them for deletion.
 
 
