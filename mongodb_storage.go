@@ -660,6 +660,7 @@ forever:
 		select {
 		case article, ok := <-Mongo_Insert_queue:
 			if !ok {
+				log.Printf("__ Quit %s", who)
 				break forever
 			}
 			articles = append(articles, &article)
@@ -743,7 +744,6 @@ forever:
 		do_delete := false
 		if len_hashs == batchsize || is_timeout {
 			diff = utils.UnixTimeSec() - last_delete
-
 			if len_hashs >= batchsize {
 				do_delete = true
 			} else if is_timeout && len_hashs > 0 && diff > mongoTimeout {
@@ -767,6 +767,7 @@ forever:
 		select {
 		case msgidhash, ok := <-Mongo_Delete_queue:
 			if !ok {
+				log.Printf("__ Quit %s", who)
 				break forever
 			}
 			if batchsize == 1 { // deletes articles one by one
@@ -858,7 +859,7 @@ forever:
 		select {
 		case readreq, ok := <-Mongo_Reader_queue:
 			if !ok {
-				log.Printf("Quit %s", who)
+				log.Printf("__ Quit %s", who)
 				break forever
 			}
 			log.Printf("MongoWorker_Reader %d process readreq", wid)
@@ -1372,7 +1373,7 @@ func MongoWorker_RandomUpDN() {
 	log.Print("Start mongostorage.MongoWorker_RandomUpDN")
 	for {
 		arandA := rand.Intn(2)
-		arandB := rand.Intn(3)
+		arandB := rand.Intn(4)
 		time.Sleep(time.Second * time.Duration(isleep))
 		sendbool := false
 		switch arandA {
@@ -1383,19 +1384,19 @@ func MongoWorker_RandomUpDN() {
 		switch arandB {
 		case 0:
 			//wType = "reader"
-			log.Printf("~ randomUpDN sending %t to UpDn_Reader_Worker_chan", sendbool)
+			log.Printf("~~ randomUpDN sending %t to UpDn_Reader_Worker_chan", sendbool)
 			UpDn_Reader_Worker_chan <- sendbool
 		case 1:
 			//wType = "delete"
-			log.Printf("~ randomUpDN sending %t to UpDn_Delete_Worker_chan", sendbool)
+			log.Printf("~~ randomUpDN sending %t to UpDn_Delete_Worker_chan", sendbool)
 			UpDn_Delete_Worker_chan <- sendbool
 		case 2:
 			//wType = "insert"
-			log.Printf("~ randomUpDN sending %t to UpDn_Insert_Worker_chan", sendbool)
+			log.Printf("~~ randomUpDN sending %t to UpDn_Insert_Worker_chan", sendbool)
 			UpDn_Insert_Worker_chan <- sendbool
 		case 3:
 			//wType = "StopAll"
-			log.Printf("~ randomUpDN sending %t to UpDn_StopAll_Worker_chan", sendbool)
+			log.Printf("~~ randomUpDN sending %t to UpDn_StopAll_Worker_chan", sendbool)
 			UpDn_StopAll_Worker_chan <- sendbool
 		default:
 		}
