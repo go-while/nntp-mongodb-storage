@@ -81,17 +81,9 @@ You can adjust the number of worker goroutines and queue sizes based on your app
 
 2. Database and Collections: It uses the `mongoDatabaseName` to select or create the target database for article storage and retrieval. Within the selected database, the function creates or retrieves the MongoDB collections for storing articles.
 
-3. Initialization: The function initializes the provided `delWorker`, `insWorker`, and `getWorker` instances to handle article deletions, insertions, and read operations, respectively.
+3. Start Workers: The function starts the provided `MongoDeleteWorker`, `MongoInsertWorker`, and `MongoReaderWorker` goroutines to process article deletions, insertions, and reading operations concurrently.
 
-4. Start Workers: The function starts the provided `delWorker`, `insWorker`, and `getWorker` goroutines to process article deletions, insertions, and reading operations concurrently.
-
-5. Queue Setup: The function sets up the `delQueue`, `insQueue`, and `getQueue`, which are channels used for communication between the main program and the worker goroutines.
-
-6. Article Deletions: Articles to be deleted will be enqueued in the `delQueue` with their corresponding hashes, which will be processed by the delete worker goroutines.
-
-7. Article Insertions: Articles to be inserted will be enqueued in the `insQueue` as `MongoArticle` instances, which will be processed by the insert worker goroutines. The `testAfterInsert` flag controls whether a test is performed after each article insertion. Unfortunately, the specific details of this test are not provided in the code.
-
-8. Read (Get) Operations: Read requests for articles will be enqueued in the `getQueue`, which will be processed by the reader worker goroutines. This allows concurrent reading of articles from the MongoDB collections.
+4. Queue Setup: The function sets up the `Mongo_Delete_queue`, `Mongo_Insert_queue`, and `Mongo_Reader_queue`, which are channels used for communication between the main program and the worker goroutines. These channels are used to enqueue articles for deletion, insertion, and reads, respectively.
 
 
 # MongoArticle Struct
