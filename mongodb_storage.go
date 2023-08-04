@@ -57,8 +57,10 @@ const DefaultGetQueue int = 2
 // DefaultGetWorker sets the number of ReaderWorker instances to start by default.
 const DefaultGetWorker int = 1
 
+// Compression constants
+
 // NOCOMP represents the value indicating no compression for articles.
-const NOCOMP int = 0
+const NOCOMP   int = 0
 
 // GZIP_enc represents the value indicating GZIP compression for articles.
 const GZIP_enc int = 1
@@ -68,10 +70,8 @@ const ZLIB_enc int = 2
 
 // Note: The default values provided above are recommended for most use cases.
 // However, these values can be adjusted according to your specific requirements.
-// For instance, increasing the DefaultInsWorker value may help improve insert performance when dealing with a high volume of articles.
-// Similarly, changing the DefaultDelWorker value may optimize delete operations for different workloads.
-// Increasing the DefaultGetWorker value may help improve read performance when dealing with a high volume of read requests.
 // Be cautious when modifying these settings, as improper adjustments might lead to suboptimal performance or resource utilization.
+
 var (
 	// _queue channels handle requests for read/get, delete and insert
 	Mongo_Reader_queue chan MongoReadRequest
