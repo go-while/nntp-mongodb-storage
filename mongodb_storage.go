@@ -207,7 +207,7 @@ func updn_Set(wType string, maxwid int, delBatch int, insBatch int, mongoUri str
 			log.Printf("Error updn_Set unknown Wtype=%s", wType)
 		} // end switch wType
 	}
-	log.Printf("updn_Set wType=%s oldval=%d maxwid=%d", wType, oldval, maxwid)
+	log.Printf("$$ updn_Set wType=%s oldval=%d maxwid=%d", wType, oldval, maxwid)
 } // end func updn_Set
 
 // MongoWorker_UpDn_Scaler runs in the background and listens on channels for up/down requests to start/stop workers.
@@ -246,7 +246,7 @@ func MongoWorker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBat
 			select {
 			case <-timeout:
 				timeout = time.After(atimeout)
-				log.Printf("UpDn_StopAll_Worker_chan alive")
+				//log.Printf("UpDn_StopAll_Worker_chan alive")
 
 			case retbool := <-UpDn_StopAll_Worker_chan:
 				switch retbool {
@@ -285,7 +285,7 @@ func MongoWorker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBat
 			select {
 			case <-timeout:
 				timeout = time.After(atimeout)
-				log.Printf("UpDn_Reader_Worker_chan alive")
+				//log.Printf("UpDn_Reader_Worker_chan alive")
 
 			case retbool := <-UpDn_Reader_Worker_chan:
 				switch retbool {
@@ -314,7 +314,7 @@ func MongoWorker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBat
 			select {
 			case <-timeout:
 				timeout = time.After(atimeout)
-				log.Printf("UpDn_Delete_Worker_chan alive")
+				//log.Printf("UpDn_Delete_Worker_chan alive")
 
 			case retbool := <-UpDn_Delete_Worker_chan:
 				switch retbool {
@@ -343,7 +343,7 @@ func MongoWorker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBat
 			select {
 			case <-timeout:
 				timeout = time.After(atimeout)
-				log.Printf("UpDn_Insert_Worker_chan alive")
+				//log.Printf("UpDn_Insert_Worker_chan alive")
 
 			case retbool := <-UpDn_Insert_Worker_chan:
 				switch retbool {
@@ -542,7 +542,7 @@ func ConnectMongoDB(who string, mongoUri string, mongoDatabaseName string, mongo
 	// Access the MongoDB collection.
 	collection := client.Database(mongoDatabaseName).Collection(mongoCollection)
 
-	log.Printf("ConnectMongoDB who=%s", who)
+	log.Printf("-> ConnectMongoDB who=%s", who)
 	return ctx, cancel, client, collection, err
 } // end func ConnectMongoDB
 
@@ -563,7 +563,7 @@ func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) er
 		log.Printf("MongoDB Error disconnecting from MongoDB: %v", err)
 		return err
 	}
-	log.Printf("DisConnectMongoDB who=%s", who)
+	log.Printf("<- DisConnectMongoDB who=%s", who)
 	return nil
 } // end func DisConnectMongoDB
 
@@ -597,7 +597,7 @@ func MongoWorker_Insert(wid int, batchsize int, mongoUri string, mongoDatabaseNa
 	}
 	reboot := false
 	who := fmt.Sprintf("MongoWorker_Insert#%d", wid)
-	log.Printf("Start %s", who)
+	log.Printf("++ Start %s", who)
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var client *mongo.Client
@@ -670,7 +670,7 @@ forever:
 			is_timeout = true
 			maxID := iStop_Worker("insert")
 			if wid > maxID {
-				log.Printf("Stopping MongoWorker_Insert %d", wid)
+				log.Printf("-- Stopping %s", who)
 				break forever // stop Worker
 			}
 			timeout = time.After(timeOutTime)
@@ -681,7 +681,7 @@ forever:
 		MongoInsertManyArticles(ctx, collection, articles)
 	}
 	DisConnectMongoDB(who, ctx, client)
-	log.Printf("Quit MongoWorker_Insert %d reboot=%t", wid, reboot)
+	log.Printf("xx End %s reboot=%t", who, reboot)
 	if reboot {
 		go MongoWorker_Insert(wid, batchsize, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
 	}
@@ -714,7 +714,7 @@ func MongoWorker_Delete(wid int, batchsize int, mongoUri string, mongoDatabaseNa
 		return
 	}
 	who := fmt.Sprintf("MongoWorker_Delete#%d", wid)
-	log.Printf("Start %s", who)
+	log.Printf("++ Start %s", who)
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var client *mongo.Client
@@ -791,7 +791,7 @@ forever:
 			is_timeout = true
 			maxID := iStop_Worker("delete")
 			if wid > maxID {
-				log.Printf("Stopping %s", who)
+				log.Printf("-- Stopping %s", who)
 				break forever // stop Worker
 			}
 			timeout = time.After(timeOutTime)
@@ -803,7 +803,7 @@ forever:
 		MongoDeleteManyArticles(ctx, collection, msgidhashes)
 	}
 	DisConnectMongoDB(who, ctx, client)
-	log.Printf("Quit %s", who)
+	log.Printf("xx End %s", who)
 } // end func MongoWorker_Delete
 
 // MongoWorker_Reader is a goroutine function responsible for processing incoming read requests from the 'Mongo_Reader_queue'.
@@ -833,7 +833,7 @@ func MongoWorker_Reader(wid int, mongoUri string, mongoDatabaseName string, mong
 		return
 	}
 	who := fmt.Sprintf("MongoWorker_Reader#%d", wid)
-	log.Printf("Start %s", who)
+	log.Printf("++ Start %s", who)
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var client *mongo.Client
@@ -883,7 +883,7 @@ forever:
 		case <-timeout:
 			maxID := iStop_Worker("reader")
 			if wid > maxID {
-				log.Printf("Stopping %s", who)
+				log.Printf("-- Stopping %s", who)
 				break forever
 			}
 			timeout = time.After(timeOutTime)
@@ -892,7 +892,7 @@ forever:
 		} // end select
 	}
 	DisConnectMongoDB(who, ctx, client)
-	log.Printf("Quit %s", who)
+	log.Printf("xx End %s", who)
 } // end func MongoWorker_Reader
 
 // MongoInsertOneArticle is a function that inserts a single article into a MongoDB collection.
@@ -1369,7 +1369,7 @@ func calculateExponentialBackoff(attempt int) time.Duration {
 // ./mongodbtest -randomUpDN -test-num 0
 func MongoWorker_RandomUpDN() {
 	isleep := 5
-	log.Print("start mongostorage.MongoWorker_RandomUpDN")
+	log.Print("Start mongostorage.MongoWorker_RandomUpDN")
 	for {
 		arandA := rand.Intn(2)
 		arandB := rand.Intn(3)
@@ -1383,19 +1383,19 @@ func MongoWorker_RandomUpDN() {
 		switch arandB {
 		case 0:
 			//wType = "reader"
-			log.Printf("randomUpDN sending %t to UpDn_Reader_Worker_chan", sendbool)
+			log.Printf("~ randomUpDN sending %t to UpDn_Reader_Worker_chan", sendbool)
 			UpDn_Reader_Worker_chan <- sendbool
 		case 1:
 			//wType = "delete"
-			log.Printf("randomUpDN sending %t to UpDn_Delete_Worker_chan", sendbool)
+			log.Printf("~ randomUpDN sending %t to UpDn_Delete_Worker_chan", sendbool)
 			UpDn_Delete_Worker_chan <- sendbool
 		case 2:
 			//wType = "insert"
-			log.Printf("randomUpDN sending %t to UpDn_Insert_Worker_chan", sendbool)
+			log.Printf("~ randomUpDN sending %t to UpDn_Insert_Worker_chan", sendbool)
 			UpDn_Insert_Worker_chan <- sendbool
 		case 3:
 			//wType = "StopAll"
-			log.Printf("randomUpDN sending %t to UpDn_StopAll_Worker_chan", sendbool)
+			log.Printf("~ randomUpDN sending %t to UpDn_StopAll_Worker_chan", sendbool)
 			UpDn_StopAll_Worker_chan <- sendbool
 		default:
 		}
