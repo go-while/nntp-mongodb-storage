@@ -165,7 +165,7 @@ func iStop_Worker(wType string) int {
 // - testAfterInsert: A boolean indicating whether to perform tests after inserting articles.
 //
 // Explanation:
-// updn_Set is used by Worker_UpDn_Scaler to update the count of a specific type of worker (reader, delete, or insert).
+// updn_Set is used by MongoWorker_UpDn_Scaler to update the count of a specific type of worker (reader, delete, or insert).
 // Based on the provided wType, the function reads the current worker count from the corresponding channel and then
 // writes the new worker count (maxwid) back to the channel.
 // If the new worker count (maxwid) is greater than the current worker count (oldval), the function starts new worker
@@ -193,15 +193,15 @@ func updn_Set(wType string, maxwid int, delBatch int, insBatch int, mongoUri str
 		switch wType {
 		case "reader":
 			for i := oldval + 1; i <= maxwid; i++ {
-				go MongoReaderWorker(i, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
+				go MongoWorker_Reader(i, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
 			}
 		case "delete":
 			for i := oldval + 1; i <= maxwid; i++ {
-				go MongoDeleteWorker(i, delBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
+				go MongoWorker_Delete(i, delBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
 			}
 		case "insert":
 			for i := oldval + 1; i <= maxwid; i++ {
-				go MongoInsertWorker(i, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
+				go MongoWorker_Insert(i, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
 			}
 		default:
 			log.Printf("Error updn_Set unknown Wtype=%s", wType)
@@ -210,14 +210,14 @@ func updn_Set(wType string, maxwid int, delBatch int, insBatch int, mongoUri str
 	log.Printf("updn_Set wType=%s oldval=%d maxwid=%d", wType, oldval, maxwid)
 } // end func updn_Set
 
-// Worker_UpDn_Scaler runs in the background and listens on channels for up/down requests to start/stop workers.
+// MongoWorker_UpDn_Scaler runs in the background and listens on channels for up/down requests to start/stop workers.
 // Parameters:
 // - getWorker: An integer representing the initial number of reader workers to start with.
 // - delWorker: An integer representing the initial number of delete workers to start with.
 // - insWorker: An integer representing the initial number of insert workers to start with.
 //
 // Explanation:
-// Worker_UpDn_Scaler is responsible for managing the scaling of worker goroutines based on up/down requests.
+// MongoWorker_UpDn_Scaler is responsible for managing the scaling of worker goroutines based on up/down requests.
 // It listens to UpDn_*_Worker_chan channels to receive requests for starting or stopping specific types of workers.
 // The function uses updn_Set to update the worker counts accordingly, which effectively starts or stops worker goroutines.
 // This mechanism allows the application to dynamically adjust the number of worker goroutines based on the workload
@@ -225,7 +225,7 @@ func updn_Set(wType string, maxwid int, delBatch int, insBatch int, mongoUri str
 // Note: The function runs in the background and continues to process requests as they arrive.
 //
 // function not written by AI.
-func Worker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBatch int, insBatch int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64, testAfterInsert bool) { // <-- needs load inital values
+func MongoWorker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBatch int, insBatch int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64, testAfterInsert bool) { // <-- needs load inital values
 	// load initial values into channels
 	stop_reader_worker_chan <- getWorker
 	stop_delete_worker_chan <- delWorker
@@ -358,7 +358,7 @@ func Worker_UpDn_Scaler(getWorker int, delWorker int, insWorker int, delBatch in
 	}(insWorker, "insert")
 	time.Sleep(time.Second / 1000)
 
-} // end func Worker_UpDn_Scaler
+} // end func MongoWorker_UpDn_Scaler
 
 // MongoArticle represents an article stored in MongoDB.
 // It contains the following fields:
@@ -476,16 +476,16 @@ func Load_MongoDB(mongoUri string, mongoDatabaseName string, mongoCollection str
 	log.Printf("Load_MongoDB: Delete delQueue=%d delWorker=%d delBatch=%d", delQueue, delWorker, delBatch)
 	log.Printf("Load_MongoDB: Insert insQueue=%d insWorker=%d insBatch=%d", insQueue, insWorker, insBatch)
 
-	Worker_UpDn_Scaler(getWorker, delWorker, insWorker, delBatch, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
+	MongoWorker_UpDn_Scaler(getWorker, delWorker, insWorker, delBatch, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
 
 	for i := 1; i <= getWorker; i++ {
-		go MongoReaderWorker(i, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
+		go MongoWorker_Reader(i, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
 	}
 	for i := 1; i <= delWorker; i++ {
-		go MongoDeleteWorker(i, delBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
+		go MongoWorker_Delete(i, delBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
 	}
 	for i := 1; i <= insWorker; i++ {
-		go MongoInsertWorker(i, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
+		go MongoWorker_Insert(i, insBatch, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
 	}
 
 } // end func Load_MongoDB
@@ -567,7 +567,7 @@ func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) er
 	return nil
 } // end func DisConnectMongoDB
 
-// MongoInsertWorker is a goroutine function responsible for processing incoming insert requests from the 'Mongo_Insert_queue'.
+// MongoWorker_Insert is a goroutine function responsible for processing incoming insert requests from the 'Mongo_Insert_queue'.
 // It inserts articles into a MongoDB collection based on the articles provided in the 'Mongo_Insert_queue'.
 // The function continuously listens for insert requests and processes them until the 'Mongo_Insert_queue' is closed.
 //
@@ -579,7 +579,7 @@ func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) er
 // - mongoTimeout: The timeout value (in seconds) for the MongoDB operations.
 // - testAfterInsert: A boolean flag to indicate whether to perform article existence checks after insertions (for testing purposes).
 //
-// The MongoInsertWorker initializes a MongoDB client and collection and continuously waits for incoming insert requests.
+// The MongoWorker_Insert initializes a MongoDB client and collection and continuously waits for incoming insert requests.
 // It accumulates the articles to be inserted until the number of articles reaches the limit set by 'cap(Mongo_Insert_queue)'.
 // Alternatively, it will perform the insert operation if a timeout occurs (after 5 seconds) or if the 'Mongo_Insert_queue' is closed.
 //
@@ -590,13 +590,14 @@ func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) er
 // This check verifies whether the article with the given MessageIDHash exists in the collection after the insertion.
 // The check logs the results of the existence test for each article.
 // function partly written by AI.
-func MongoInsertWorker(wid int, batchsize int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64, testAfterInsert bool) {
+func MongoWorker_Insert(wid int, batchsize int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64, testAfterInsert bool) {
 	if wid <= 0 {
-		log.Printf("Error MongoInsertWorker wid <= 0")
+		log.Printf("Error MongoWorker_Insert wid <= 0")
 		return
 	}
 	reboot := false
-	who := fmt.Sprintf("MongoInsertWorker#%d", wid)
+	who := fmt.Sprintf("MongoWorker_Insert#%d", wid)
+	log.Printf("Start %s", who)
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var client *mongo.Client
@@ -607,7 +608,7 @@ func MongoInsertWorker(wid int, batchsize int, mongoUri string, mongoDatabaseNam
 		ctx, cancel, client, collection, err = ConnectMongoDB(who, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
 		if err != nil {
 			attempts++
-			log.Printf("MongoDB Error MongoInsertWorker ConnectMongoDB err='%v'", err)
+			log.Printf("MongoDB Error MongoWorker_Insert ConnectMongoDB err='%v'", err)
 			time.Sleep(time.Second * calculateExponentialBackoff(attempts))
 			continue
 		}
@@ -669,24 +670,24 @@ forever:
 			is_timeout = true
 			maxID := iStop_Worker("insert")
 			if wid > maxID {
-				log.Printf("Stopping MongoInsertWorker %d", wid)
+				log.Printf("Stopping MongoWorker_Insert %d", wid)
 				break forever // stop Worker
 			}
 			timeout = time.After(timeOutTime)
-			//log.Printf("MongoInsertWorker alive hashs=%d", len(msgidhashes))
+			//log.Printf("MongoWorker_Insert alive hashs=%d", len(msgidhashes))
 		} // end select insert_queue
 	} // end for forever
 	if len(articles) > 0 {
 		MongoInsertManyArticles(ctx, collection, articles)
 	}
 	DisConnectMongoDB(who, ctx, client)
-	log.Printf("Quit MongoInsertWorker %d reboot=%t", wid, reboot)
+	log.Printf("Quit MongoWorker_Insert %d reboot=%t", wid, reboot)
 	if reboot {
-		go MongoInsertWorker(wid, batchsize, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
+		go MongoWorker_Insert(wid, batchsize, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout, testAfterInsert)
 	}
-} // end func MongoInsertWorker
+} // end func MongoWorker_Insert
 
-// MongoDeleteWorker is a goroutine function responsible for processing incoming delete requests from the 'Mongo_Delete_queue'.
+// MongoWorker_Delete is a goroutine function responsible for processing incoming delete requests from the 'Mongo_Delete_queue'.
 // It deletes articles from a MongoDB collection based on the given MessageIDHashes provided in the 'Mongo_Delete_queue'.
 // The function continuously listens for delete requests and processes them until the 'Mongo_Delete_queue' is closed.
 //
@@ -697,7 +698,7 @@ forever:
 // - mongoCollection: The name of the MongoDB collection where the articles are stored.
 // - mongoTimeout: The timeout value (in seconds) for the MongoDB operations.
 //
-// The MongoDeleteWorker initializes a MongoDB client and collection, and continuously waits for incoming delete requests.
+// The MongoWorker_Delete initializes a MongoDB client and collection, and continuously waits for incoming delete requests.
 // It accumulates the MessageIDHashes to be deleted until the number of hashes reaches the limit set by 'cap(Mongo_Delete_queue)'.
 // Alternatively, it will perform the delete operation if a timeout occurs (after 5 seconds) or if the 'Mongo_Delete_queue' is closed.
 //
@@ -707,12 +708,13 @@ forever:
 // Note: If the 'limit' is set to 1, the function will delete articles one by one, processing individual delete requests from the queue.
 // Otherwise, it will delete articles in bulk based on the accumulated MessageIDHashes.
 // function partly written by AI.
-func MongoDeleteWorker(wid int, batchsize int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64) {
+func MongoWorker_Delete(wid int, batchsize int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64) {
 	if wid <= 0 {
-		log.Printf("Error MongoDeleteWorker wid <= 0")
+		log.Printf("Error MongoWorker_Delete wid <= 0")
 		return
 	}
-	who := fmt.Sprintf("MongoDeleteWorker#%d", wid)
+	who := fmt.Sprintf("MongoWorker_Delete#%d", wid)
+	log.Printf("Start %s", who)
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var client *mongo.Client
@@ -723,7 +725,7 @@ func MongoDeleteWorker(wid int, batchsize int, mongoUri string, mongoDatabaseNam
 		ctx, cancel, client, collection, err = ConnectMongoDB(who, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
 		if err != nil {
 			attempts++
-			log.Printf("MongoDB Error MongoInsertWorker ConnectMongoDB err='%v'", err)
+			log.Printf("MongoDB Error MongoWorker_Insert ConnectMongoDB err='%v'", err)
 			time.Sleep(time.Second * calculateExponentialBackoff(attempts))
 			continue
 		}
@@ -789,11 +791,11 @@ forever:
 			is_timeout = true
 			maxID := iStop_Worker("delete")
 			if wid > maxID {
-				log.Printf("Stopping MongoDeleteWorker %d", wid)
+				log.Printf("Stopping %s", who)
 				break forever // stop Worker
 			}
 			timeout = time.After(timeOutTime)
-			//log.Printf("MongoDeleteWorker alive hashs=%d", len(msgidhashes))
+			//log.Printf("MongoWorker_Delete alive hashs=%d", len(msgidhashes))
 			//break select_delete_queue
 		} // end select delete_queue
 	} // end for forever
@@ -801,10 +803,10 @@ forever:
 		MongoDeleteManyArticles(ctx, collection, msgidhashes)
 	}
 	DisConnectMongoDB(who, ctx, client)
-	log.Printf("Quit MongoDeleteWorker %d", wid)
-} // end func MongoDeleteWorker
+	log.Printf("Quit %s", who)
+} // end func MongoWorker_Delete
 
-// MongoReaderWorker is a goroutine function responsible for processing incoming read requests from the 'Mongo_Reader_queue'.
+// MongoWorker_Reader is a goroutine function responsible for processing incoming read requests from the 'Mongo_Reader_queue'.
 // It reads articles from a MongoDB collection based on the given MessageIDHashes provided in the 'readreq' parameter.
 // The function continuously listens for read requests and processes them until the 'Mongo_Reader_queue' is closed.
 //
@@ -815,7 +817,7 @@ forever:
 // - mongoCollection: The name of the MongoDB collection where the articles are stored.
 // - mongoTimeout: The timeout value (in seconds) for the MongoDB operations.
 //
-// The MongoReaderWorker initializes a MongoDB client and collection, and continuously waits for incoming read requests.
+// The MongoWorker_Reader initializes a MongoDB client and collection, and continuously waits for incoming read requests.
 // When a read request is received, it reads articles from the collection for the specified MessageIDHashes using the 'readArticlesByMessageIDHashes' function.
 // If any error occurs during the retrieval, the function logs the error and continues to the next read request.
 //
@@ -825,12 +827,13 @@ forever:
 // The function uses exponential backoff with jitter to retry connecting to the MongoDB server in case of connection errors.
 // Once the 'Mongo_Reader_queue' is closed, the function performs disconnection from the MongoDB server and terminates.
 // function partly written by AI.
-func MongoReaderWorker(wid int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64) {
+func MongoWorker_Reader(wid int, mongoUri string, mongoDatabaseName string, mongoCollection string, mongoTimeout int64) {
 	if wid <= 0 {
-		log.Printf("Error MongoReaderWorker wid <= 0")
+		log.Printf("Error MongoWorker_Reader wid <= 0")
 		return
 	}
-	who := fmt.Sprintf("MongoReaderWorker#%d", wid)
+	who := fmt.Sprintf("MongoWorker_Reader#%d", wid)
+	log.Printf("Start %s", who)
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var client *mongo.Client
@@ -841,7 +844,7 @@ func MongoReaderWorker(wid int, mongoUri string, mongoDatabaseName string, mongo
 		ctx, cancel, client, collection, err = ConnectMongoDB(who, mongoUri, mongoDatabaseName, mongoCollection, mongoTimeout)
 		if err != nil {
 			attempts++
-			log.Printf("MongoDB Error MongoReaderWorker ConnectMongoDB err='%v'", err)
+			log.Printf("MongoDB Error MongoWorker_Reader ConnectMongoDB err='%v'", err)
 			time.Sleep(time.Second * calculateExponentialBackoff(attempts))
 			continue
 		}
@@ -855,10 +858,10 @@ forever:
 		select {
 		case readreq, ok := <-Mongo_Reader_queue:
 			if !ok {
-				log.Printf("Quit MongoReaderWorker %d", wid)
+				log.Printf("Quit %s", who)
 				break forever
 			}
-			log.Printf("MongoReaderWorker %d process readreq", wid)
+			log.Printf("MongoWorker_Reader %d process readreq", wid)
 
 			ctx, cancel = extendContextTimeout(ctx, cancel, mongoTimeout)
 			// Read articles for the given msgidhashes.
@@ -880,17 +883,17 @@ forever:
 		case <-timeout:
 			maxID := iStop_Worker("reader")
 			if wid > maxID {
-				log.Printf("Stopping MongoReaderWorker %d", wid)
+				log.Printf("Stopping %s", who)
 				break forever
 			}
 			timeout = time.After(timeOutTime)
-			//log.Printf("MongoReaderWorker alive hashs=%d", len(msgidhashes))
+			//log.Printf("MongoWorker_Reader alive hashs=%d", len(msgidhashes))
 			//break reader_queue
 		} // end select
 	}
 	DisConnectMongoDB(who, ctx, client)
-	log.Printf("Quit MongoReaderWorker %d", wid)
-} // end func MongoReaderWorker
+	log.Printf("Quit %s", who)
+} // end func MongoWorker_Reader
 
 // MongoInsertOneArticle is a function that inserts a single article into a MongoDB collection.
 //
@@ -1282,7 +1285,7 @@ func CompressData(input []byte, algo int) ([]byte, error) {
 		zWriter.Close()
 		return buf.Bytes(), nil
 	default:
-		return nil, fmt.Errorf("unsupported compression algorithm: %s", algo)
+		return nil, fmt.Errorf("unsupported compression algorithm: %d", algo)
 	}
 } // end func CompressData
 
@@ -1313,7 +1316,7 @@ func DecompressData(input []byte, algo int) ([]byte, error) {
 		zReader.Close()
 		return ioutil.ReadAll(zReader)
 	default:
-		return nil, fmt.Errorf("unsupported compression algorithm: %s", algo)
+		return nil, fmt.Errorf("unsupported compression algorithm: %d", algo)
 	}
 } // end func DecompressData
 
@@ -1364,9 +1367,9 @@ func calculateExponentialBackoff(attempt int) time.Duration {
 // The purpose of this function is to simulate random up/down requests to control the worker
 // function not written by AI.
 // ./mongodbtest -randomUpDN -test-num 0
-func RandomUpDN() {
+func MongoWorker_RandomUpDN() {
 	isleep := 5
-	log.Print("start mongostorage.RandomUpDN")
+	log.Print("start mongostorage.MongoWorker_RandomUpDN")
 	for {
 		arandA := rand.Intn(2)
 		arandB := rand.Intn(3)
@@ -1397,6 +1400,6 @@ func RandomUpDN() {
 		default:
 		}
 	}
-} // end func RandomUpDN
+} // end func MongoWorker_RandomUpDN
 
 // EOF mongodb_storage.go
