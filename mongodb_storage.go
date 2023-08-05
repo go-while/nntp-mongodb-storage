@@ -69,6 +69,8 @@ const GZIP_enc int = 1
 // ZLIB_enc represents the value indicating ZLIB compression for articles.
 const ZLIB_enc int = 2
 
+
+
 // Note: The default values provided above are recommended for most use cases.
 // However, these values can be adjusted according to your specific requirements.
 // Be cautious when modifying these settings, as improper adjustments might lead to suboptimal performance or resource utilization.
@@ -89,61 +91,23 @@ var (
 	stop_reader_worker_chan = make(chan int, 1)
 	stop_delete_worker_chan = make(chan int, 1)
 	stop_insert_worker_chan = make(chan int, 1)
-	worker_status_chan = make(chan workerstatus, 1)
+	worker_status_chan = make(chan workerstatus, 65535)
+	READER string = "reader"
+	DELETE string = "delete"
+	INSERT string = "insert"
 ) // end var
 
 type workerstatus struct {
 	wType string
-	start bool
+	status update
 }
 
-func updateWorkerStatus(wType string, start bool) {
-	worker_status_chan <- workerstatus{ wType, start }
+type update struct {
+	Did    int
+	Bad    int
+	Boot   bool
+	Stop   bool
 }
-
-func workerStatus() {
-	var reader, delete, insert, n1, n2, n3 uint64
-	timeout := time.After(time.Second * 5)
-	for {
-		select {
-			case <- timeout:
-				if reader != n1 {
-					Counter.Set("MongoWorker_Reader", reader)
-					n1 = reader
-				}
-				if delete != n2 {
-					Counter.Set("MongoWorker_Delete", delete)
-					n2 = delete
-				}
-				if insert != n3 {
-					Counter.Set("MongoWorker_Insert", insert)
-					n3 = insert
-				}
-				timeout = time.After(time.Second * 5)
-			case status := <- worker_status_chan:
-				switch status.wType {
-					case "reader":
-						if status.start {
-							reader++
-						} else {
-							reader--
-						}
-					case "delete":
-						if status.start {
-							delete++
-						} else {
-							delete--
-						}
-					case "insert":
-						if status.start {
-							insert++
-						} else {
-							insert--
-						}
-				}
-		} // end select
-	} // end for
-} // end func WorkerStatus
 
 // MongoStorageConfig represents the parameters for configuring MongoDB and worker goroutines.
 // You can adjust the number of worker goroutines and queue sizes based on your application's requirements and available resources.
@@ -201,7 +165,7 @@ type MongoStorageConfig struct {
 	// The specific test details are not provided in the function, and the flag can be used for application-specific testing purposes.
 	TestAfterInsert bool
 
-	// InsBatch sets the number of Msgidhashes a DeleteWorker will cache before deleting to batch into one process.
+	// DelBatch sets the number of Msgidhashes a DeleteWorker will cache before deleting to batch into one process.
 	DelBatch int
 
 	// InsBatch sets the number of Articles an InsertWorker will cache before inserting to batch into one process.
@@ -243,8 +207,6 @@ type MongoReadReqReturn struct {
 //   - Msgidhashes: A slice of messageIDHashes for which articles are requested.
 //   - RetChan: A channel to receive the fetched articles as []*MongoArticle.
 //     The fetched articles will be sent through this channel upon successful retrieval.
-//     If an error occurs during the retrieval process, the channel will remain open but receive a nil slice.
-//     If the Msgidhashes slice is empty or nil, the channel will receive an empty slice ([]*MongoArticle{}).
 type MongoReadRequest struct {
 	Msgidhashes []*string
 	RetChan     chan []*MongoArticle
@@ -255,26 +217,12 @@ type MongoReadRequest struct {
 // - Msgidhashes: A slice of messageIDHashes for which articles are requested to be deleted.
 // - RetChan: A channel to receive the deleted articles as []*MongoArticle.
 // The deleted articles will be sent through this channel upon successful deletion.
-// If an error occurs during the deletion process, the channel will remain open but receive a nil slice.
-// If the Msgidhashes slice is empty or nil, the channel will receive an empty slice
 type MongoDeleteRequest struct {
 	Msgidhashes []string
 	RetChan     chan []*MongoArticle
 } // end type MongoDeleteRequest struct
 
 // GetDefaultMongoStorageConfig returns a MongoStorageConfig with default values.
-// The returned configuration is pre-filled with default values for MongoDB connection,
-// worker goroutines, and queue sizes. You can use this configuration as a starting point
-// and adjust specific fields based on your application's requirements.
-//
-// Example Usage:
-// cfg := GetDefaultMongoStorageConfig()
-// cfg.DelWorker = 3  // Adjust the number of delete worker goroutines.
-// cfg.InsQueue = 10  // Adjust the insert queue size.
-// cfg.GetWorker = 2  // Adjust the number of reader worker goroutines.
-//
-// Note: If you want to enable a test after an article insertion, set the TestAfterInsert field to true.
-// For instance, cfg.TestAfterInsert = true.
 func GetDefaultMongoStorageConfig() MongoStorageConfig {
 	cfg := MongoStorageConfig{
 
@@ -386,18 +334,14 @@ func Load_MongoDB(cfg *MongoStorageConfig) {
 
 	go workerStatus()
 	go mongoWorker_UpDn_Scaler(cfg)
-
 	for i := 1; i <= cfg.GetWorker; i++ {
-		//go MongoWorker_Reader(i, cfg.MongoURI, cfg.MongoDatabaseName, cfg.MongoCollection, cfg.MongoTimeout)
-		go MongoWorker_Reader(i, cfg)
+		go MongoWorker_Reader(i, &READER, cfg)
 	}
 	for i := 1; i <= cfg.DelWorker; i++ {
-		//go MongoWorker_Delete(i, cfg.DelBatch, cfg.MongoURI, cfg.MongoDatabaseName, cfg.MongoCollection, cfg.MongoTimeout)
-		go MongoWorker_Delete(i, cfg)
+		go MongoWorker_Delete(i, &DELETE, cfg)
 	}
 	for i := 1; i <= cfg.InsWorker; i++ {
-		//go MongoWorker_Insert(i, cfg.InsBatch, cfg.MongoURI, cfg.MongoDatabaseName, cfg.MongoCollection, cfg.MongoTimeout, cfg.TestAfterInsert)
-		go MongoWorker_Insert(i, cfg)
+		go MongoWorker_Insert(i, &INSERT, cfg)
 	}
 
 } // end func Load_MongoDB
@@ -444,6 +388,14 @@ func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) er
 	return nil
 } // end func DisConnectMongoDB
 
+
+func requeue_Articles(articles []*MongoArticle){
+	for _, article := range articles {
+		Mongo_Insert_queue <- *article
+		log.Printf("Warn requeue_Articles requeued %d articles", len(articles))
+	}
+} // end func requeue_Articles
+
 // MongoWorker_Insert is a goroutine function responsible for processing incoming insert requests from the 'Mongo_Insert_queue'.
 // It inserts articles into a MongoDB collection based on the articles provided in the 'Mongo_Insert_queue'.
 // The function continuously listens for insert requests and processes them until the 'Mongo_Insert_queue' is closed.
@@ -453,13 +405,14 @@ func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) er
 // If the 'TestAfterInsert' flag is set to true, the function will perform article existence checks after each insertion.
 // The check logs the results of the existence test for each article.
 // function partly written by AI.
-func MongoWorker_Insert(wid int, cfg *MongoStorageConfig) {
+func MongoWorker_Insert(wid int, wType *string, cfg *MongoStorageConfig) {
 	if wid <= 0 {
 		log.Printf("Error MongoWorker_Insert wid <= 0")
 		return
 	}
-	updateWorkerStatus("insert", true)
-	defer updateWorkerStatus("insert", false)
+	did, bad := 0, 0
+	updateWorkerStatus(wType, update{ Boot: true })
+	defer updateWorkerStatus(wType, update{ Stop: true })
 	reboot := false
 	who := fmt.Sprintf("MongoWorker_Insert#%d", wid)
 	log.Printf("++ Start %s", who)
@@ -503,18 +456,12 @@ forever:
 
 			if do_insert {
 				log.Printf("Pre-Ins Many msgidhashes=%d", len_arts)
+				did += len_arts
 				ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 				if err := MongoInsertManyArticles(ctx, collection, articles); err != nil {
-					log.Printf("Error MongoInsertManyArticles err='%v'", err)
 					// connection error
-					if len(articles) > 0 {
-						go func(articles []*MongoArticle){
-							for _, article := range articles {
-								Mongo_Insert_queue <- *article
-								log.Printf("Warn MongoInsertManyArticles requeued %d articles", len(articles))
-							}
-						}(articles)
-					}
+					go requeue_Articles(articles)
+					articles = []*MongoArticle{}
 					reboot = true
 				}
 				if cfg.TestAfterInsert {
@@ -545,6 +492,10 @@ forever:
 			}
 		case <-timeout:
 			is_timeout = true
+			if did > 0 || bad > 0 {
+				updateWorkerStatus(wType, update{ Did: did, Bad: bad })
+				did, bad = 0, 0
+			}
 			maxID := iStop_Worker("insert")
 			if wid > maxID {
 				log.Printf("-- Stopping %s", who)
@@ -555,12 +506,19 @@ forever:
 		} // end select insert_queue
 	} // end for forever
 	if len(articles) > 0 {
-		MongoInsertManyArticles(ctx, collection, articles)
+		if err := MongoInsertManyArticles(ctx, collection, articles); err != nil {
+			// connection error
+			go requeue_Articles(articles)
+			articles = []*MongoArticle{}
+			reboot = true
+		}
+		did += len(articles)
 	}
 	DisConnectMongoDB(who, ctx, client)
+	updateWorkerStatus(wType, update{ Did: did, Bad: bad })
 	log.Printf("xx End %s reboot=%t", who, reboot)
 	if reboot {
-		go MongoWorker_Insert(wid, cfg)
+		go MongoWorker_Insert(wid, wType, cfg)
 	}
 } // end func MongoWorker_Insert
 
@@ -570,13 +528,14 @@ forever:
 // Note: If cfg.DelBatch is set to 1, the function will delete articles one by one, processing individual delete requests from the queue.
 // Otherwise, it will delete articles in bulk based on the accumulated MessageIDHashes.
 // function partly written by AI.
-func MongoWorker_Delete(wid int, cfg *MongoStorageConfig) {
+func MongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 	if wid <= 0 {
 		log.Printf("Error MongoWorker_Delete wid <= 0")
 		return
 	}
-	updateWorkerStatus("delete", true)
-	defer updateWorkerStatus("delete", false)
+	did, bad := 0, 0
+	updateWorkerStatus(wType, update{ Boot: true })
+	defer updateWorkerStatus(wType, update{ Stop: true })
 	who := fmt.Sprintf("MongoWorker_Delete#%d", wid)
 	log.Printf("++ Start %s", who)
 	var ctx context.Context
@@ -620,11 +579,12 @@ forever:
 		if do_delete {
 			log.Printf("Pre-Del Many msgidhashes=%d", len_hashs)
 			ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
-			MongoDeleteManyArticles(ctx, collection, msgidhashes)
+			MongoDeleteManyArticles(ctx, collection, msgidhashes) // TODO catch error !
 			msgidhashes = []string{}
 			last_delete = utils.UnixTimeSec()
+			did += len(msgidhashes)
 		} else {
-			//log.Printf("!do_insert len_hashs=%d is_timeout=%t last=%d", len_hashs, is_timeout, utils.UnixTimeSec() - last_insert)
+			//log.Printf("!do_delete len_hashs=%d is_timeout=%t last=%d", len_hashs, is_timeout, utils.UnixTimeSec() - last_insert)
 		}
 	select_delete_queue:
 		select {
@@ -640,6 +600,7 @@ forever:
 					err := deleteArticlesByMessageIDHash(ctx, collection, messageIDHash)
 					if err != nil {
 						log.Printf("MongoDB Error deleting messageIDHash=%s err='%v'", messageIDHash, err)
+						bad++
 						continue
 					}
 					log.Printf("MongoDB Deleted messageIDHash=%s", messageIDHash)
@@ -653,6 +614,10 @@ forever:
 			}
 		case <-timeout:
 			is_timeout = true
+			if did > 0 || bad > 0 {
+				updateWorkerStatus(wType, update{ Did: did, Bad: bad })
+				did, bad = 0, 0
+			}
 			maxID := iStop_Worker("delete")
 			if wid > maxID {
 				log.Printf("-- Stopping %s", who)
@@ -664,9 +629,10 @@ forever:
 		} // end select delete_queue
 	} // end for forever
 	if len(msgidhashes) > 0 {
-		MongoDeleteManyArticles(ctx, collection, msgidhashes)
+		MongoDeleteManyArticles(ctx, collection, msgidhashes) // TODO: catch error !
 	}
 	DisConnectMongoDB(who, ctx, client)
+	updateWorkerStatus(wType, update{ Did: did, Bad: bad })
 	log.Printf("xx End %s", who)
 } // end func MongoWorker_Delete
 
@@ -675,13 +641,14 @@ forever:
 // The function continuously listens for read requests and processes them until the 'Mongo_Reader_queue' is closed.
 // Once the 'Mongo_Reader_queue' is closed, the function performs disconnection from the MongoDB server and terminates.
 // function partly written by AI.
-func MongoWorker_Reader(wid int, cfg *MongoStorageConfig) {
+func MongoWorker_Reader(wid int, wType *string, cfg *MongoStorageConfig) {
 	if wid <= 0 {
 		log.Printf("Error MongoWorker_Reader wid <= 0")
 		return
 	}
-	updateWorkerStatus("reader", true)
-	defer updateWorkerStatus("reader", false)
+	did, bad := 0, 0
+	updateWorkerStatus(wType, update{ Boot: true })
+	defer updateWorkerStatus(wType, update{ Stop: true })
 	who := fmt.Sprintf("MongoWorker_Reader#%d", wid)
 	log.Printf("++ Start %s", who)
 	var ctx context.Context
@@ -712,11 +679,12 @@ forever:
 				break forever
 			}
 			log.Printf("MongoWorker_Reader %d process readreq", wid)
-
+			did++
 			ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 			// Read articles for the given msgidhashes.
 			articles, err := readArticlesByMessageIDHashes(ctx, collection, readreq.Msgidhashes)
 			if err != nil {
+				bad++
 				log.Printf("Error reading articles: %v", err)
 				continue
 			}
@@ -731,6 +699,11 @@ forever:
 			}
 			// Do something with the articles, e.g., handle them or send them to another channel.
 		case <-timeout:
+			//is_timeout = true
+			if did > 0 || bad > 0 {
+				updateWorkerStatus(wType, update{ Did: did, Bad: bad })
+				did, bad = 0, 0
+			}
 			maxID := iStop_Worker("reader")
 			if wid > maxID {
 				log.Printf("-- Stopping %s", who)
@@ -742,6 +715,7 @@ forever:
 		} // end select
 	}
 	DisConnectMongoDB(who, ctx, client)
+	updateWorkerStatus(wType, update{ Did: did, Bad: bad })
 	log.Printf("xx End %s", who)
 } // end func MongoWorker_Reader
 
@@ -1189,15 +1163,15 @@ func updn_Set(wType string, maxwid int, cfg *MongoStorageConfig) {
 		switch wType {
 		case "reader":
 			for i := oldval + 1; i <= maxwid; i++ {
-				go MongoWorker_Reader(i, cfg)
+				go MongoWorker_Reader(i, &READER, cfg)
 			}
 		case "delete":
 			for i := oldval + 1; i <= maxwid; i++ {
-				go MongoWorker_Delete(i, cfg)
+				go MongoWorker_Delete(i, &DELETE, cfg)
 			}
 		case "insert":
 			for i := oldval + 1; i <= maxwid; i++ {
-				go MongoWorker_Insert(i, cfg)
+				go MongoWorker_Insert(i, &INSERT, cfg)
 			}
 		default:
 			log.Printf("Error updn_Set unknown Wtype=%s", wType)
@@ -1356,6 +1330,54 @@ func mongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 	time.Sleep(time.Second / 1000)
 
 } // end func mongoWorker_UpDn_Scaler
+
+func updateWorkerStatus(wType *string, status update) {
+	worker_status_chan <- workerstatus{ wType: *wType, status: status }
+}
+
+func workerStatus() {
+	// worker status counter map
+	// prevents workers from calling sync.Mutex
+	// workers send updates into worker_status_chan
+	counter := make(map[string]map[string]uint64)
+	counter["reader"] = make(map[string]uint64)
+	counter["delete"] = make(map[string]uint64)
+	counter["insert"] = make(map[string]uint64)
+	//timeout := time.After(time.Millisecond * 2500)
+	for {
+		select {
+			/*
+			case <- timeout:
+
+				Counter.Set("Did_MongoWorker_Reader", counter["reader"]["did"])
+				Counter.Set("Did_MongoWorker_Delete", counter["delete"]["did"])
+				Counter.Set("Did_MongoWorker_Insert", counter["insert"]["did"])
+
+				Counter.Set("Running_MongoWorker_Reader", counter["reader"]["run"])
+				Counter.Set("Running_MongoWorker_Delete", counter["delete"]["run"])
+				Counter.Set("Running_MongoWorker_Insert", counter["insert"]["run"])
+
+				timeout = time.After(time.Millisecond * 2500)
+			*/
+			case nu := <- worker_status_chan:
+
+				if nu.status.Did > 0 {
+					counter[nu.wType]["did"] += uint64(nu.status.Did)
+				}
+				if nu.status.Bad > 0 {
+					counter[nu.wType]["bad"] += uint64(nu.status.Bad)
+				}
+				if nu.status.Boot {
+					counter[nu.wType]["run"]++
+				} else
+				if nu.status.Stop {
+					counter[nu.wType]["run"]--
+				}
+
+		} // end select
+	} // end for
+} // end func WorkerStatus
+
 
 type COUNTER struct {
 	m map[string]uint64
