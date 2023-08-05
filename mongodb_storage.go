@@ -388,7 +388,7 @@ func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) er
 	return nil
 } // end func DisConnectMongoDB
 
-
+// requeue_Articles requeues a slice of articles into the MongoDB insert queue.
 func requeue_Articles(articles []*MongoArticle){
 	for _, article := range articles {
 		Mongo_Insert_queue <- *article
