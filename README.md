@@ -205,9 +205,7 @@ The MongoDB Workers are designed to handle article inserts, deletes, and reads c
 
 ## MongoWorker_Insert
 
-The MongoWorker_Insert runs as a goroutine and supports concurrent insertions of articles.
-
-- MongoWorker_Insert is responsible for inserting articles into the specified MongoDB collection.
+MongoWorker_Insert is responsible for inserting articles into the specified MongoDB collection.
 
 - By launching multiple MongoWorker_Insert instances concurrently (controlled by InsWorker), articles can be inserted in parallel, reducing insert times.
 
@@ -223,9 +221,7 @@ The MongoWorker_Insert runs as a goroutine and supports concurrent insertions of
 
 ## MongoWorker_Delete
 
-The MongoWorker_Delete runs as a goroutine with concurrent execution capability.
-
-- MongoWorker_Delete is responsible for deleting articles from the specified MongoDB collection.
+MongoWorker_Delete is responsible for deleting articles from the specified MongoDB collection.
 
 - By using multiple MongoWorker_Delete instances concurrently (controlled by DelWorker), the system efficiently handles article deletions from the MongoDB database, particularly useful for large datasets or frequently changing data.
 
@@ -235,9 +231,7 @@ The MongoWorker_Delete runs as a goroutine with concurrent execution capability.
 
 ## MongoWorker_Reader
 
-The MongoWorker_Reader runs as a goroutine, supporting concurrent article retrieval.
-
-- MongoWorker_Reader is responsible for handling read requests to retrieve articles from the MongoDB database.
+MongoWorker_Reader is responsible for handling read requests to retrieve articles from the MongoDB database.
 
 - By launching multiple MongoWorker_Reader instances concurrently (controlled by GetWorker), articles can be retrieved in parallel, reducing read times.
 
