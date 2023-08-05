@@ -138,7 +138,7 @@ type MongoReadRequest struct {
 
 #Explanation of the fields in the MongoReadRequest struct:
 
-- Msgidhashes: A slice of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection. This field allows the MongoWorker_Reader to know which articles to retrieve from the database.
+- Msgidhashes: A slice of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection. This field allows the mongoWorker_Reader to know which articles to retrieve from the database.
 
 - RetChan: A channel used to receive the fetched articles as []*MongoArticle. The fetched articles will be sent through this channel upon successful retrieval.
 
@@ -146,7 +146,7 @@ type MongoReadRequest struct {
 
 - *MongoArticle: This is a pointer to a MongoArticle object. Instead of holding the actual MongoArticle value, it holds the memory address where the MongoArticle is stored. Using pointers allows for efficient memory usage when dealing with large datasets, as only the memory addresses are passed around, rather than duplicating the entire data.
 
-- *MongoArticle.Found: This is a boolean flag that indicates whether the requested article with the corresponding MessageIDHash was found in the MongoDB collection or not. When the MongoWorker_Reader retrieves an article, it sets this flag to 'true'. If the article is not found in the database, the flag is set to 'false'.
+- *MongoArticle.Found: This is a boolean flag that indicates whether the requested article with the corresponding MessageIDHash was found in the MongoDB collection or not. When the mongoWorker_Reader retrieves an article, it sets this flag to 'true'. If the article is not found in the database, the flag is set to 'false'.
 
 
 
@@ -187,7 +187,7 @@ The `MongoArticle` struct is a custom data type defined in the codebase, which r
 
 - `Enc`: An integer representing the encoding type of the article, mapped to the `enc` field in the MongoDB collection.
 
-- `Found`: A boolean flag that is used to indicate whether the article was found during a retrieval operation. It is initially set to false and may be modified by the MongoWorker_Reader to indicate if an article was successfully retrieved.
+- `Found`: A boolean flag that is used to indicate whether the article was found during a retrieval operation. It is initially set to false and may be modified by the mongoWorker_Reader to indicate if an article was successfully retrieved.
 
 
 
@@ -197,11 +197,11 @@ Multiple workers can be spawned concurrently to handle article inserts, deletes,
 
 This concurrency significantly improves the overall insertion performance, especially when dealing with a large number of articles.
 
-## MongoWorker_Insert
+## mongoWorker_Insert
 
-MongoWorker_Insert is responsible for inserting articles into the specified MongoDB collection.
+mongoWorker_Insert is responsible for inserting articles into the specified MongoDB collection.
 
-- By launching multiple MongoWorker_Insert instances concurrently (controlled by InsWorker), articles can be inserted in parallel, reducing insert times.
+- By launching multiple mongoWorker_Insert instances concurrently (controlled by InsWorker), articles can be inserted in parallel, reducing insert times.
 - This concurrent approach efficiently distributes the write workload across available resources, avoiding bottlenecks and ensuring efficient insertion of multiple articles simultaneously.
 - Before starting the insertion process, the worker initializes and establishes a connection to the MongoDB database using the provided URI and database name.
 - Upon receiving an article from the Mongo_Insert_queue, the worker performs a duplicate check based on the MessageIDHash to avoid inserting duplicates.
@@ -209,20 +209,20 @@ MongoWorker_Insert is responsible for inserting articles into the specified Mong
 - The worker then inserts the article into the MongoDB collection and logs relevant information such as raw size, compressed size (if applied), and the success or failure of the insertion.
 
 
-## MongoWorker_Delete
+## mongoWorker_Delete
 
-MongoWorker_Delete is responsible for deleting articles from the specified MongoDB collection.
+mongoWorker_Delete is responsible for deleting articles from the specified MongoDB collection.
 
-- By using multiple MongoWorker_Delete instances concurrently (controlled by DelWorker), the system efficiently handles article deletions from the MongoDB database, particularly useful for large datasets or frequently changing data.
+- By using multiple mongoWorker_Delete instances concurrently (controlled by DelWorker), the system efficiently handles article deletions from the MongoDB database, particularly useful for large datasets or frequently changing data.
 - The worker initializes and establishes a connection to the MongoDB database before starting the deletion process.
 - Upon receiving an article hash from the Mongo_Delete_queue, the worker proceeds to delete it from the MongoDB collection and logs the relevant information.
 
 
-## MongoWorker_Reader
+## mongoWorker_Reader
 
-MongoWorker_Reader is responsible for handling read requests to retrieve articles from the MongoDB database.
+mongoWorker_Reader is responsible for handling read requests to retrieve articles from the MongoDB database.
 
-- By launching multiple MongoWorker_Reader instances concurrently (controlled by GetWorker), articles can be retrieved in parallel, reducing read times.
+- By launching multiple mongoWorker_Reader instances concurrently (controlled by GetWorker), articles can be retrieved in parallel, reducing read times.
 - Before starting the reading process, the worker initializes and establishes a connection to the MongoDB database.
 - The worker listens to the Mongo_Reader_queue for read requests, each represented as a `MongoReadRequest` struct containing article hashes (`Msgidhashes`) and a return channel (`RetChan`) for sending back the retrieved articles.
 - Upon receiving a read request, the worker queries the MongoDB collection to retrieve the corresponding articles (in compressed form) based on the provided article hashes (`Msgidhashes`).
