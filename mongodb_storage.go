@@ -17,6 +17,7 @@ import (
 	"log"
 	"math/rand"
 	"time"
+	"sync"
 )
 
 // CONSTANTS comments written by AI.
@@ -73,6 +74,7 @@ const ZLIB_enc int = 2
 // Be cautious when modifying these settings, as improper adjustments might lead to suboptimal performance or resource utilization.
 
 var (
+	Counter COUNTER
 	// _queue channels handle requests for read/get, delete and insert
 	Mongo_Reader_queue chan MongoReadRequest
 	Mongo_Delete_queue chan string
@@ -87,7 +89,61 @@ var (
 	stop_reader_worker_chan = make(chan int, 1)
 	stop_delete_worker_chan = make(chan int, 1)
 	stop_insert_worker_chan = make(chan int, 1)
+	worker_status_chan = make(chan workerstatus, 1)
 ) // end var
+
+type workerstatus struct {
+	wType string
+	start bool
+}
+
+func updateWorkerStatus(wType string, start bool) {
+	worker_status_chan <- workerstatus{ wType, start }
+}
+
+func workerStatus() {
+	var reader, delete, insert, n1, n2, n3 uint64
+	timeout := time.After(time.Second * 5)
+	for {
+		select {
+			case <- timeout:
+				if reader != n1 {
+					Counter.Set("MongoWorker_Reader", reader)
+					n1 = reader
+				}
+				if delete != n2 {
+					Counter.Set("MongoWorker_Delete", delete)
+					n2 = delete
+				}
+				if insert != n3 {
+					Counter.Set("MongoWorker_Insert", insert)
+					n3 = insert
+				}
+				timeout = time.After(time.Second * 5)
+			case status := <- worker_status_chan:
+				switch status.wType {
+					case "reader":
+						if status.start {
+							reader++
+						} else {
+							reader--
+						}
+					case "delete":
+						if status.start {
+							delete++
+						} else {
+							delete--
+						}
+					case "insert":
+						if status.start {
+							insert++
+						} else {
+							insert--
+						}
+				}
+		} // end select
+	} // end for
+} // end func WorkerStatus
 
 // MongoStorageConfig represents the parameters for configuring MongoDB and worker goroutines.
 // You can adjust the number of worker goroutines and queue sizes based on your application's requirements and available resources.
@@ -319,6 +375,8 @@ func Load_MongoDB(cfg *MongoStorageConfig) {
 	// Load_MongoDB initializes the mongodb storage backend
 	SetDefaultsIfZero(cfg)
 
+	Counter.Init() // = COUNTER{m: make(map[string]uint64) }
+
 	Mongo_Delete_queue = make(chan string, cfg.DelQueue)
 	Mongo_Insert_queue = make(chan MongoArticle, cfg.InsQueue)
 	Mongo_Reader_queue = make(chan MongoReadRequest, cfg.GetQueue)
@@ -326,8 +384,7 @@ func Load_MongoDB(cfg *MongoStorageConfig) {
 	log.Printf("Load_MongoDB: Delete DelQueue=%d DelWorker=%d DelBatch=%d", cfg.DelQueue, cfg.DelWorker, cfg.DelBatch)
 	log.Printf("Load_MongoDB: Insert InsQueue=%d InsWorker=%d InsBatch=%d", cfg.InsQueue, cfg.InsWorker, cfg.InsBatch)
 
-	//MongoWorker_UpDn_Scaler(GetWorker, DelWorker, InsWorker, DelBatch, InsBatch, MongoURI, MongoDatabaseName, MongoCollection, MongoTimeout, TestAfterInsert)
-	MongoWorker_UpDn_Scaler(cfg)
+	mongoWorker_UpDn_Scaler(cfg)
 
 	for i := 1; i <= cfg.GetWorker; i++ {
 		//go MongoWorker_Reader(i, cfg.MongoURI, cfg.MongoDatabaseName, cfg.MongoCollection, cfg.MongoTimeout)
@@ -400,6 +457,8 @@ func MongoWorker_Insert(wid int, cfg *MongoStorageConfig) {
 		log.Printf("Error MongoWorker_Insert wid <= 0")
 		return
 	}
+	updateWorkerStatus("insert", true)
+	defer updateWorkerStatus("insert", false)
 	reboot := false
 	who := fmt.Sprintf("MongoWorker_Insert#%d", wid)
 	log.Printf("++ Start %s", who)
@@ -419,8 +478,8 @@ func MongoWorker_Insert(wid int, cfg *MongoStorageConfig) {
 		}
 		break
 	}
-	timeOutTime := time.Duration(time.Second * 1)
-	timeout := time.After(timeOutTime)
+	timeOutTime := int64(1)
+	timeout := time.After(time.Second * time.Duration(timeOutTime))
 	articles := []*MongoArticle{}
 	is_timeout := false
 	var diff int64
@@ -434,7 +493,7 @@ forever:
 
 			if len_arts >= cfg.InsBatch {
 				do_insert = true
-			} else if is_timeout && len_arts > 0 && diff > cfg.MongoTimeout {
+			} else if is_timeout && len_arts > 0 && diff > timeOutTime {
 				do_insert = true
 			}
 			if is_timeout {
@@ -443,17 +502,26 @@ forever:
 
 			if do_insert {
 				log.Printf("Pre-Ins Many msgidhashes=%d", len_arts)
-				ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 				if err := MongoInsertManyArticles(ctx, collection, articles); err != nil {
+					// connection error
+					if len(articles) > 0 {
+						go func(articles []*MongoArticle){
+							for _, article := range articles {
+								Mongo_Insert_queue <- *article
+								log.Printf("Warn MongoInsertManyArticles requeued %d articles", len(articles))
+							}
+						}(articles)
+					}
 					reboot = true
 				}
 				if cfg.TestAfterInsert {
 					for _, article := range articles {
-						if retbool, err := checkIfArticleExistsByMessageIDHash(ctx, collection, article.MessageIDHash); retbool {
+						ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
+						if retbool, err := CheckIfArticleExistsByMessageIDHash(ctx, collection, article.MessageIDHash); retbool {
 							// The article with the given hash exists.
 							log.Printf("article exists: %s", *article.MessageIDHash)
 						} else if err != nil {
-							log.Printf("Error checkIfArticleExistsByMessageIDHash: %s err %v", *article.MessageIDHash, err)
+							log.Printf("Error CheckIfArticleExistsByMessageIDHash: %s err %v", *article.MessageIDHash, err)
 						}
 					}
 				}
@@ -479,7 +547,7 @@ forever:
 				log.Printf("-- Stopping %s", who)
 				break forever // stop Worker
 			}
-			timeout = time.After(timeOutTime)
+			timeout = time.After(time.Second * time.Duration(timeOutTime))
 			//log.Printf("MongoWorker_Insert alive hashs=%d", len(msgidhashes))
 		} // end select insert_queue
 	} // end for forever
@@ -504,6 +572,8 @@ func MongoWorker_Delete(wid int, cfg *MongoStorageConfig) {
 		log.Printf("Error MongoWorker_Delete wid <= 0")
 		return
 	}
+	updateWorkerStatus("delete", true)
+	defer updateWorkerStatus("delete", false)
 	who := fmt.Sprintf("MongoWorker_Delete#%d", wid)
 	log.Printf("++ Start %s", who)
 	var ctx context.Context
@@ -522,8 +592,8 @@ func MongoWorker_Delete(wid int, cfg *MongoStorageConfig) {
 		}
 		break
 	}
-	timeOutTime := time.Duration(time.Second * 1)
-	timeout := time.After(timeOutTime)
+	timeOutTime := int64(1)
+	timeout := time.After(time.Second * time.Duration(timeOutTime))
 	msgidhashes := []string{}
 	is_timeout := false
 	var diff int64
@@ -536,7 +606,7 @@ forever:
 			diff = utils.UnixTimeSec() - last_delete
 			if len_hashs >= cfg.DelBatch {
 				do_delete = true
-			} else if is_timeout && len_hashs > 0 && diff > cfg.MongoTimeout {
+			} else if is_timeout && len_hashs > 0 && diff > timeOutTime {
 				do_delete = true
 			}
 			if is_timeout {
@@ -585,7 +655,7 @@ forever:
 				log.Printf("-- Stopping %s", who)
 				break forever // stop Worker
 			}
-			timeout = time.After(timeOutTime)
+			timeout = time.After(time.Second * time.Duration(timeOutTime))
 			//log.Printf("MongoWorker_Delete alive hashs=%d", len(msgidhashes))
 			//break select_delete_queue
 		} // end select delete_queue
@@ -607,6 +677,8 @@ func MongoWorker_Reader(wid int, cfg *MongoStorageConfig) {
 		log.Printf("Error MongoWorker_Reader wid <= 0")
 		return
 	}
+	updateWorkerStatus("reader", true)
+	defer updateWorkerStatus("reader", false)
 	who := fmt.Sprintf("MongoWorker_Reader#%d", wid)
 	log.Printf("++ Start %s", who)
 	var ctx context.Context
@@ -626,7 +698,7 @@ func MongoWorker_Reader(wid int, cfg *MongoStorageConfig) {
 		break
 	}
 	timeOutTime := time.Duration(time.Second * 1)
-	timeout := time.After(timeOutTime)
+	timeout := time.After(time.Second * time.Duration(timeOutTime))
 	// Process incoming read requests forever.
 forever:
 	for {
@@ -661,7 +733,7 @@ forever:
 				log.Printf("-- Stopping %s", who)
 				break forever
 			}
-			timeout = time.After(timeOutTime)
+			time.After(time.Second * time.Duration(timeOutTime))
 			//log.Printf("MongoWorker_Reader alive hashs=%d", len(msgidhashes))
 			//break reader_queue
 		} // end select
@@ -928,7 +1000,7 @@ func RetrieveBodyByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 
 // RetrieveBodyByMessageIDHash is a function that retrieves the "Body" data of an article based on its MessageIDHash.
 // function written by AI.
-func checkIfArticleExistsByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash *string) (bool, error) {
+func CheckIfArticleExistsByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash *string) (bool, error) {
 	// Filter to find the articles with the given MessageIDHash.
 	filter := bson.M{"_id": messageIDHash}
 	result := collection.FindOne(ctx, filter, nil)
@@ -942,7 +1014,7 @@ func checkIfArticleExistsByMessageIDHash(ctx context.Context, collection *mongo.
 	}
 	// The document with the given MessageIDHash exists in the collection.
 	return true, nil
-} // end func checkIfArticleExistsByMessageIDHash
+} // end func CheckIfArticleExistsByMessageIDHash
 
 // function written by AI.
 func EncodeToGob(data []byte) ([]byte, error) {
@@ -1131,9 +1203,9 @@ func updn_Set(wType string, maxwid int, cfg *MongoStorageConfig) {
 	log.Printf("$$ updn_Set wType=%s oldval=%d maxwid=%d", wType, oldval, maxwid)
 } // end func updn_Set
 
-// MongoWorker_UpDn_Scaler runs in the background and listens on channels for up/down requests to start/stop workers.
+// mongoWorker_UpDn_Scaler runs in the background and listens on channels for up/down requests to start/stop workers.
 // Explanation:
-// MongoWorker_UpDn_Scaler is responsible for managing the scaling of worker goroutines based on up/down requests.
+// mongoWorker_UpDn_Scaler is responsible for managing the scaling of worker goroutines based on up/down requests.
 // It listens to UpDn_*_Worker_chan channels to receive requests for starting or stopping specific types of workers.
 // The function uses updn_Set to update the worker counts accordingly, which effectively starts or stops worker goroutines.
 // This mechanism allows the application to dynamically adjust the number of worker goroutines based on the workload
@@ -1141,7 +1213,7 @@ func updn_Set(wType string, maxwid int, cfg *MongoStorageConfig) {
 // Note: The function runs in the background and continues to process requests as they arrive.
 //
 // function not written by AI.
-func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital values
+func mongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital values
 	// load initial values into channels
 	stop_reader_worker_chan <- cfg.GetWorker
 	stop_delete_worker_chan <- cfg.DelWorker
@@ -1280,6 +1352,42 @@ func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 	}(cfg.InsWorker, "insert")
 	time.Sleep(time.Second / 1000)
 
-} // end func MongoWorker_UpDn_Scaler
+} // end func mongoWorker_UpDn_Scaler
+
+type COUNTER struct {
+	m map[string]uint64
+	mux sync.Mutex
+}
+
+func (c *COUNTER) Init() {
+	c.mux.Lock()
+	c.m = make(map[string]uint64, 8)
+	c.mux.Unlock()
+} // end func Counter.Init
+
+func (c *COUNTER) Inc(name string) {
+	c.mux.Lock()
+	c.m[name]++
+	c.mux.Unlock()
+} // end func Counter.Inc
+
+func (c *COUNTER) Dec(name string) {
+	c.mux.Lock()
+	if c.m[name] > 0 {
+		c.m[name]--
+	}
+	c.mux.Unlock()
+} // end func Counter.Inc
+
+func (c *COUNTER) Set(name string, val uint64) {
+	c.mux.Lock()
+	if val <= 0 {
+		c.m[name] = 0
+	} else {
+		c.m[name] = val
+	}
+	c.mux.Unlock()
+} // end func Counter.Set
 
 // EOF mongodb_storage.go : package mongostorage
+
