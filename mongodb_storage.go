@@ -16,8 +16,8 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
-	"time"
 	"sync"
+	"time"
 )
 
 // CONSTANTS comments written by AI.
@@ -61,15 +61,13 @@ const DefaultGetWorker int = 1
 // Compression constants
 
 // NOCOMP represents the value indicating no compression for articles.
-const NOCOMP   int = 0
+const NOCOMP int = 0
 
 // GZIP_enc represents the value indicating GZIP compression for articles.
 const GZIP_enc int = 1
 
 // ZLIB_enc represents the value indicating ZLIB compression for articles.
 const ZLIB_enc int = 2
-
-
 
 // Note: The default values provided above are recommended for most use cases.
 // However, these values can be adjusted according to your specific requirements.
@@ -88,25 +86,25 @@ var (
 	UpDn_Delete_Worker_chan  = make(chan bool, 1)
 	UpDn_Insert_Worker_chan  = make(chan bool, 1)
 	// internal channels to notify workers to stop
-	stop_reader_worker_chan = make(chan int, 1)
-	stop_delete_worker_chan = make(chan int, 1)
-	stop_insert_worker_chan = make(chan int, 1)
-	worker_status_chan = make(chan workerstatus, 65535)
-	READER string = "reader"
-	DELETE string = "delete"
-	INSERT string = "insert"
+	stop_reader_worker_chan        = make(chan int, 1)
+	stop_delete_worker_chan        = make(chan int, 1)
+	stop_insert_worker_chan        = make(chan int, 1)
+	worker_status_chan             = make(chan workerstatus, 65535)
+	READER                  string = "reader"
+	DELETE                  string = "delete"
+	INSERT                  string = "insert"
 ) // end var
 
 type workerstatus struct {
-	wType string
+	wType  string
 	status update
 }
 
 type update struct {
-	Did    int
-	Bad    int
-	Boot   bool
-	Stop   bool
+	Did  int
+	Bad  int
+	Boot bool
+	Stop bool
 }
 
 // MongoStorageConfig represents the parameters for configuring MongoDB and worker goroutines.
@@ -184,15 +182,15 @@ type MongoStorageConfig struct {
 // - Enc: An integer representing the encoding type of the article (mapped to the "enc" field in MongoDB).
 // - Found: A boolean indicating whether the article was found during retrieval (not mapped to MongoDB).
 type MongoArticle struct {
-	MessageIDHash *string `bson:"_id"`
-	MessageID     *string `bson:"msgid"`
+	MessageIDHash *string  `bson:"_id"`
+	MessageID     *string  `bson:"msgid"`
 	Newsgroups    []string `bson:"newsgroups"`
-	Head     []byte `bson:"head"`
-	Headsize int    `bson:"hs"`
-	Body     []byte `bson:"body"`
-	Bodysize int    `bson:"bs"`
-	Enc      int    `bson:"enc"`
-	Found    bool
+	Head          []byte   `bson:"head"`
+	Headsize      int      `bson:"hs"`
+	Body          []byte   `bson:"body"`
+	Bodysize      int      `bson:"bs"`
+	Enc           int      `bson:"enc"`
+	Found         bool
 } // end type MongoArticle struct
 
 // MongoReadReqReturn represents the return value for a read request in MongoDB.
@@ -390,7 +388,7 @@ func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) er
 } // end func DisConnectMongoDB
 
 // requeue_Articles requeues a slice of articles into the MongoDB insert queue.
-func requeue_Articles(articles []*MongoArticle){
+func requeue_Articles(articles []*MongoArticle) {
 	log.Printf("Warn requeue_Articles: articles=%d", len(articles))
 
 	for _, article := range articles {
@@ -413,8 +411,8 @@ func MongoWorker_Insert(wid int, wType *string, cfg *MongoStorageConfig) {
 		return
 	}
 	did, bad := 0, 0
-	updateWorkerStatus(wType, update{ Boot: true })
-	defer updateWorkerStatus(wType, update{ Stop: true })
+	updateWorkerStatus(wType, update{Boot: true})
+	defer updateWorkerStatus(wType, update{Stop: true})
 	reboot := false
 	who := fmt.Sprintf("MongoWorker_Insert#%d", wid)
 	log.Printf("++ Start %s", who)
@@ -496,7 +494,7 @@ forever:
 		case <-timeout:
 			is_timeout = true
 			if did > 0 || bad > 0 {
-				updateWorkerStatus(wType, update{ Did: did, Bad: bad })
+				updateWorkerStatus(wType, update{Did: did, Bad: bad})
 				did, bad = 0, 0
 			}
 			maxID := iStop_Worker("insert")
@@ -518,7 +516,7 @@ forever:
 		did += len(articles)
 	}
 	DisConnectMongoDB(who, ctx, client)
-	updateWorkerStatus(wType, update{ Did: did, Bad: bad })
+	updateWorkerStatus(wType, update{Did: did, Bad: bad})
 	log.Printf("xx End %s reboot=%t", who, reboot)
 	if reboot {
 		go MongoWorker_Insert(wid, wType, cfg)
@@ -537,8 +535,8 @@ func MongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 		return
 	}
 	did, bad := 0, 0
-	updateWorkerStatus(wType, update{ Boot: true })
-	defer updateWorkerStatus(wType, update{ Stop: true })
+	updateWorkerStatus(wType, update{Boot: true})
+	defer updateWorkerStatus(wType, update{Stop: true})
 	who := fmt.Sprintf("MongoWorker_Delete#%d", wid)
 	log.Printf("++ Start %s", who)
 	var ctx context.Context
@@ -619,7 +617,7 @@ forever:
 		case <-timeout:
 			is_timeout = true
 			if did > 0 || bad > 0 {
-				updateWorkerStatus(wType, update{ Did: did, Bad: bad })
+				updateWorkerStatus(wType, update{Did: did, Bad: bad})
 				did, bad = 0, 0
 			}
 			maxID := iStop_Worker("delete")
@@ -636,7 +634,7 @@ forever:
 		MongoDeleteManyArticles(ctx, collection, msgidhashes) // TODO: catch error !
 	}
 	DisConnectMongoDB(who, ctx, client)
-	updateWorkerStatus(wType, update{ Did: did, Bad: bad })
+	updateWorkerStatus(wType, update{Did: did, Bad: bad})
 	log.Printf("xx End %s", who)
 } // end func MongoWorker_Delete
 
@@ -651,8 +649,8 @@ func MongoWorker_Reader(wid int, wType *string, cfg *MongoStorageConfig) {
 		return
 	}
 	did, bad := 0, 0
-	updateWorkerStatus(wType, update{ Boot: true })
-	defer updateWorkerStatus(wType, update{ Stop: true })
+	updateWorkerStatus(wType, update{Boot: true})
+	defer updateWorkerStatus(wType, update{Stop: true})
 	who := fmt.Sprintf("MongoWorker_Reader#%d", wid)
 	log.Printf("++ Start %s", who)
 	var ctx context.Context
@@ -707,7 +705,7 @@ forever:
 		case <-timeout:
 			//is_timeout = true
 			if did > 0 || bad > 0 {
-				updateWorkerStatus(wType, update{ Did: did, Bad: bad })
+				updateWorkerStatus(wType, update{Did: did, Bad: bad})
 				did, bad = 0, 0
 			}
 			maxID := iStop_Worker("reader")
@@ -721,7 +719,7 @@ forever:
 		} // end select
 	}
 	DisConnectMongoDB(who, ctx, client)
-	updateWorkerStatus(wType, update{ Did: did, Bad: bad })
+	updateWorkerStatus(wType, update{Did: did, Bad: bad})
 	log.Printf("xx End %s", who)
 	if reboot {
 		go MongoWorker_Reader(wid, wType, cfg)
@@ -1342,7 +1340,7 @@ func mongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 } // end func mongoWorker_UpDn_Scaler
 
 func updateWorkerStatus(wType *string, status update) {
-	worker_status_chan <- workerstatus{ wType: *wType, status: status }
+	worker_status_chan <- workerstatus{wType: *wType, status: status}
 }
 
 func workerStatus() {
@@ -1356,7 +1354,7 @@ func workerStatus() {
 	//timeout := time.After(time.Millisecond * 2500)
 	for {
 		select {
-			/*
+		/*
 			case <- timeout:
 
 				Counter.Set("Did_MongoWorker_Reader", counter["reader"]["did"])
@@ -1368,31 +1366,29 @@ func workerStatus() {
 				Counter.Set("Running_MongoWorker_Insert", counter["insert"]["run"])
 
 				timeout = time.After(time.Millisecond * 2500)
-			*/
-			case nu := <- worker_status_chan:
+		*/
+		case nu := <-worker_status_chan:
 
-				if nu.status.Did > 0 {
-					counter[nu.wType]["did"] += uint64(nu.status.Did)
+			if nu.status.Did > 0 {
+				counter[nu.wType]["did"] += uint64(nu.status.Did)
+			}
+			if nu.status.Bad > 0 {
+				counter[nu.wType]["bad"] += uint64(nu.status.Bad)
+			}
+			if nu.status.Boot {
+				counter[nu.wType]["run"]++
+			} else if nu.status.Stop {
+				if counter[nu.wType]["run"] > 0 {
+					counter[nu.wType]["run"]--
 				}
-				if nu.status.Bad > 0 {
-					counter[nu.wType]["bad"] += uint64(nu.status.Bad)
-				}
-				if nu.status.Boot {
-					counter[nu.wType]["run"]++
-				} else
-				if nu.status.Stop {
-					if counter[nu.wType]["run"] > 0 {
-						counter[nu.wType]["run"]--
-					}
-				}
+			}
 
 		} // end select
 	} // end for
 } // end func WorkerStatus
 
-
 type COUNTER struct {
-	m map[string]uint64
+	m   map[string]uint64
 	mux sync.Mutex
 }
 
@@ -1427,4 +1423,3 @@ func (c *COUNTER) Set(name string, val uint64) {
 } // end func Counter.Set
 
 // EOF mongodb_storage.go : package mongostorage
-
