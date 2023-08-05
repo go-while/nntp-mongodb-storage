@@ -360,8 +360,9 @@ func ConnectMongoDB(who string, cfg *MongoStorageConfig) (context.Context, conte
 
 	// Set a timeout for the connection.
 	newTimeout := time.Second * time.Duration(cfg.MongoTimeout)
-	deadline := time.Now().Add(newTimeout)
-	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	//deadline := time.Now().Add(newTimeout)
+	//ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	ctx, cancel := context.WithTimeout(context.Background(), newTimeout)
 	err = client.Connect(ctx)
 	if err != nil {
 		log.Printf("Error connecting to MongoDB: %v", err)
@@ -696,7 +697,7 @@ forever:
 			len_request := len(readreq.Msgidhashes)
 			len_got_arts := len(articles)
 			if readreq.RetChan != nil {
-				log.Printf("passing response %d/%d read articles to readreq.RetChan", len_got_arts, len_request)
+				//log.Printf("passing response %d/%d read articles to readreq.RetChan", len_got_arts, len_request)
 				readreq.RetChan <- articles // MongoReadReqReturn{ Articles: articles }
 				// sender does not close the readreq.RetChan here so it can be reused for next read request
 			} else {
@@ -807,8 +808,9 @@ func extendContextTimeout(ctx context.Context, cancel context.CancelFunc, MongoT
 	//log.Printf("extendContextTimeout")
 	cancel()
 	newTimeout := time.Second * time.Duration(MongoTimeout)
-	deadline := time.Now().Add(newTimeout)
-	ctx, cancel = context.WithDeadline(context.Background(), deadline)
+	//deadline := time.Now().Add(newTimeout)
+	ctx, cancel = context.WithTimeout(context.Background(), newTimeout)
+	//ctx, cancel = context.WithDeadline(context.Background(), deadline)
 	return ctx, cancel
 } // end func extendContextTimeout
 
@@ -885,7 +887,7 @@ func readArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Collec
 	}
 	for _, hash := range msgidhashes {
 		if !isPStringInSlice(founds, hash) {
-			log.Printf("readArticlesByMessageIDHashes notfound hash='%s'", *hash)
+			//log.Printf("readArticlesByMessageIDHashes notfound hash='%s'", *hash)
 			var article MongoArticle
 			article.MessageIDHash = hash
 			articles = append(articles, &article)
@@ -1379,7 +1381,9 @@ func workerStatus() {
 					counter[nu.wType]["run"]++
 				} else
 				if nu.status.Stop {
-					counter[nu.wType]["run"]--
+					if counter[nu.wType]["run"] > 0 {
+						counter[nu.wType]["run"]--
+					}
 				}
 
 		} // end select
