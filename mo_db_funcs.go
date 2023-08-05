@@ -2,11 +2,11 @@ package mongostorage
 
 import (
 	"context"
+	"errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
-	"errors"
 )
 
 // MongoInsertOneArticle is a function that inserts a single article into a MongoDB collection.
@@ -37,32 +37,32 @@ func MongoInsertManyArticles(ctx context.Context, collection *mongo.Collection, 
 	if err != nil {
 		//log.Printf("Got an Error MongoInsertManyArticles err='%v' inserted=%d", err, len(result.InsertedIDs))
 
-		if retbool, retint := IsDup(err); retbool && retint > 0 {
-			log.Printf("Info MongoInsertManyArticles IsDup=%d/%d", retint, len(articles))
+		if retbool := IsDup(err); retbool {
+			log.Printf("Info MongoInsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
 			// all insert errors are duplicates
 			return nil
 		} else {
-			log.Printf("Warn MongoInsertManyArticles IsDup=%d/%d", retint, len(articles))
+			log.Printf("Warn MongoInsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
 		}
 		/*
-		if writeErrors, ok := err.(mongo.writeErrors); ok {
-			// Handle individual write errors for each document.
-			for _, writeError := range writeErrors {
-				if writeError.Code == 11000 { // Duplicate key error code
-					// Handle duplicate key error here.
-					log.Printf("Duplicate key error for document: Code=%d", writeError.Code)
-					continue
-				} else {
-					// Handle other write errors, if needed.
-					log.Printf("Error MongoInsertManyArticles Other insert error code=%d", writeError.Code)
-					continue
+			if writeErrors, ok := err.(mongo.writeErrors); ok {
+				// Handle individual write errors for each document.
+				for _, writeError := range writeErrors {
+					if writeError.Code == 11000 { // Duplicate key error code
+						// Handle duplicate key error here.
+						log.Printf("Duplicate key error for document: Code=%d", writeError.Code)
+						continue
+					} else {
+						// Handle other write errors, if needed.
+						log.Printf("Error MongoInsertManyArticles Other insert error code=%d", writeError.Code)
+						continue
+					}
 				}
+			} else {
+				// Handle general connection or other error.
+				log.Printf("Error MongoInsertManyArticles err='%v'", err)
+				return err
 			}
-		} else {
-			// Handle general connection or other error.
-			log.Printf("Error MongoInsertManyArticles err='%v'", err)
-			return err
-		}
 		*/
 		return err
 	} else // end result InsertMany err != nil
@@ -73,35 +73,30 @@ func MongoInsertManyArticles(ctx context.Context, collection *mongo.Collection, 
 } // end func MongoInsertManyArticles
 
 // IsDuplicateKeyError returns true if err is a duplicate key error
-func IsDup(err error) (bool, int) {
-	dupes := 0
+func IsDup(err error) bool {
 	retbool := false
 	for ; err != nil; err = errors.Unwrap(err) {
 		if e, ok := err.(mongo.ServerError); ok {
 			if e.HasErrorCode(11000) {
-				dupes++
+				retbool = true
 			}
 			/*
-			if e.HasErrorCode(11001) {
-				dupes++
-			}
-			if e.HasErrorCode(12582) {
-				dupes++
-			}*/
+				if e.HasErrorCode(11001) {
+					dupes++
+				}
+				if e.HasErrorCode(12582) {
+					dupes++
+				}*/
 			/*
-			return  ||  || e.HasErrorCode(12582) ||
-				e.HasErrorCodeWithMessage(16460, " E11000 ")
+				return e.HasErrorCode(11000) || e.HasErrorCode(11001) || e.HasErrorCode(12582) ||
+					e.HasErrorCodeWithMessage(16460, " E11000 ")
 			*/
 		} else {
 			log.Printf("Error, error is not mongo.WriteError")
 		}
 	}
-	if dupes > 0 {
-		retbool = true
-	}
-	return retbool, dupes
+	return retbool
 } // end func IsDuplicateKeyError
-
 
 /*
 func IsDup(err error) (bool, int) {
@@ -143,7 +138,6 @@ func MongoDeleteManyArticles(ctx context.Context, collection *mongo.Collection, 
 	log.Printf("MongoDB Deleted many=%d", result.DeletedCount)
 	return result.DeletedCount == int64(len(msgidhashes))
 } // end func MongoDeleteManyArticles
-
 
 // DeleteArticlesByMessageIDHash deletes an article from the MongoDB collection by its MessageIDHash.
 // function written by AI.
@@ -231,7 +225,6 @@ func readArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Collec
 
 	return articles, nil
 } // end func readArticlesByMessageIDHashes
-
 
 // RetrieveHeadByMessageIDHash is a function that retrieves the "Head" data of an article based on its MessageIDHash.
 // function written by AI.
