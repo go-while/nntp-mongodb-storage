@@ -193,7 +193,9 @@ The `MongoArticle` struct is a custom data type defined in the codebase, which r
 
 ## Workers
 
-Multiple workers can be spawned concurrently to handle article inserts, deletes, and reads in parallel. This concurrency significantly improves the overall insertion performance, especially when dealing with a large number of articles.
+Multiple workers can be spawned concurrently to handle article inserts, deletes, and reads in parallel.
+
+This concurrency significantly improves the overall insertion performance, especially when dealing with a large number of articles.
 
 ## MongoWorker_Insert
 
@@ -203,7 +205,7 @@ MongoWorker_Insert is responsible for inserting articles into the specified Mong
 - This concurrent approach efficiently distributes the write workload across available resources, avoiding bottlenecks and ensuring efficient insertion of multiple articles simultaneously.
 - Before starting the insertion process, the worker initializes and establishes a connection to the MongoDB database using the provided URI and database name.
 - Upon receiving an article from the Mongo_Insert_queue, the worker performs a duplicate check based on the MessageIDHash to avoid inserting duplicates.
-- Optionally, the worker can apply compression to the article's header and body before insertion, based on the test case and configuration.
+- Optionally, the sender can apply compression to the article's header and body before insertion, based on the case and configuration.
 - The worker then inserts the article into the MongoDB collection and logs relevant information such as raw size, compressed size (if applied), and the success or failure of the insertion.
 
 
@@ -223,7 +225,7 @@ MongoWorker_Reader is responsible for handling read requests to retrieve article
 - By launching multiple MongoWorker_Reader instances concurrently (controlled by GetWorker), articles can be retrieved in parallel, reducing read times.
 - Before starting the reading process, the worker initializes and establishes a connection to the MongoDB database.
 - The worker listens to the Mongo_Reader_queue for read requests, each represented as a `MongoReadRequest` struct containing article hashes (`Msgidhashes`) and a return channel (`RetChan`) for sending back the retrieved articles.
-- Upon receiving a read request, the worker queries the MongoDB collection to retrieve the corresponding articles based on the provided article hashes (`Msgidhashes`).
+- Upon receiving a read request, the worker queries the MongoDB collection to retrieve the corresponding articles (in compressed form) based on the provided article hashes (`Msgidhashes`).
 - Once the articles are retrieved, the worker sends them back to the main program through the `RetChan` channel of the corresponding `MongoReadRequest` struct, enabling efficient and concurrent reading of articles from the database.
 
 
