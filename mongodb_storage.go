@@ -354,7 +354,7 @@ func ConnectMongoDB(who string, cfg *MongoStorageConfig) (context.Context, conte
 
 	client, err := mongo.NewClient(options.Client().ApplyURI(cfg.MongoURI))
 	if err != nil {
-		log.Printf("MongoDB Error creating MongoDB client: %v", err)
+		log.Printf("Error creating MongoDB client: %v", err)
 		return nil, nil, nil, nil, err
 	}
 
@@ -364,7 +364,7 @@ func ConnectMongoDB(who string, cfg *MongoStorageConfig) (context.Context, conte
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	err = client.Connect(ctx)
 	if err != nil {
-		log.Printf("MongoDB Error connecting to MongoDB: %v", err)
+		log.Printf("Error connecting to MongoDB: %v", err)
 		cancel()
 		return nil, nil, nil, nil, err
 	}
@@ -390,9 +390,10 @@ func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) er
 
 // requeue_Articles requeues a slice of articles into the MongoDB insert queue.
 func requeue_Articles(articles []*MongoArticle){
+	log.Printf("Warn requeue_Articles: articles=%d", len(articles))
+
 	for _, article := range articles {
 		Mongo_Insert_queue <- *article
-		log.Printf("Warn requeue_Articles requeued %d articles", len(articles))
 	}
 } // end func requeue_Articles
 
@@ -426,7 +427,7 @@ func MongoWorker_Insert(wid int, wType *string, cfg *MongoStorageConfig) {
 		ctx, cancel, client, collection, err = ConnectMongoDB(who, cfg)
 		if err != nil {
 			attempts++
-			log.Printf("MongoDB Error MongoWorker_Insert ConnectMongoDB err='%v'", err)
+			log.Printf("Error MongoWorker_Insert ConnectMongoDB err='%v'", err)
 			time.Sleep(time.Second * calculateExponentialBackoff(attempts))
 			continue
 		}
@@ -486,6 +487,7 @@ forever:
 				log.Printf("__ Quit %s", who)
 				break forever
 			}
+			//log.Printf("%s process Mongo_Insert_queue", who)
 			articles = append(articles, &article)
 			if len(articles) >= cfg.InsBatch {
 				break insert_queue
@@ -548,7 +550,7 @@ func MongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 		ctx, cancel, client, collection, err = ConnectMongoDB(who, cfg)
 		if err != nil {
 			attempts++
-			log.Printf("MongoDB Error MongoWorker_Insert ConnectMongoDB err='%v'", err)
+			log.Printf("Error MongoWorker_Insert ConnectMongoDB err='%v'", err)
 			time.Sleep(time.Second * calculateExponentialBackoff(attempts))
 			continue
 		}
@@ -593,17 +595,18 @@ forever:
 				log.Printf("__ Quit %s", who)
 				break forever
 			}
+			//log.Printf("%s process Mongo_Delete_queue", who)
 			if cfg.DelBatch == 1 { // deletes articles one by one
 				for messageIDHash := range Mongo_Delete_queue {
 					log.Printf("Pre-Del One msgidhash='%s'", msgidhash)
 					ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 					err := deleteArticlesByMessageIDHash(ctx, collection, messageIDHash)
 					if err != nil {
-						log.Printf("MongoDB Error deleting messageIDHash=%s err='%v'", messageIDHash, err)
+						log.Printf("Error deleting messageIDHash=%s err='%v'", messageIDHash, err)
 						bad++
 						continue
 					}
-					log.Printf("MongoDB Deleted messageIDHash=%s", messageIDHash)
+					log.Printf("Deleted messageIDHash=%s", messageIDHash)
 				}
 			} else {
 				msgidhashes = append(msgidhashes, msgidhash)
@@ -661,7 +664,7 @@ func MongoWorker_Reader(wid int, wType *string, cfg *MongoStorageConfig) {
 		ctx, cancel, client, collection, err = ConnectMongoDB(who, cfg)
 		if err != nil {
 			attempts++
-			log.Printf("MongoDB Error MongoWorker_Reader ConnectMongoDB err='%v'", err)
+			log.Printf("Error MongoWorker_Reader ConnectMongoDB err='%v'", err)
 			time.Sleep(time.Second * calculateExponentialBackoff(attempts))
 			continue
 		}
@@ -669,6 +672,7 @@ func MongoWorker_Reader(wid int, wType *string, cfg *MongoStorageConfig) {
 	}
 	timeOutTime := time.Duration(time.Second * 1)
 	timeout := time.After(time.Second * time.Duration(timeOutTime))
+	reboot := false
 	// Process incoming read requests forever.
 forever:
 	for {
@@ -678,15 +682,16 @@ forever:
 				log.Printf("__ Quit %s", who)
 				break forever
 			}
-			log.Printf("MongoWorker_Reader %d process readreq", wid)
+			//log.Printf("%s process Mongo_Reader_queue", who)
 			did++
 			ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 			// Read articles for the given msgidhashes.
 			articles, err := readArticlesByMessageIDHashes(ctx, collection, readreq.Msgidhashes)
 			if err != nil {
 				bad++
-				log.Printf("Error reading articles: %v", err)
-				continue
+				log.Printf("Error readArticlesByMessageIDHashes hashs=%d err='%v'", len(readreq.Msgidhashes), err)
+				reboot = true
+				break forever
 			}
 			len_request := len(readreq.Msgidhashes)
 			len_got_arts := len(articles)
@@ -717,6 +722,9 @@ forever:
 	DisConnectMongoDB(who, ctx, client)
 	updateWorkerStatus(wType, update{ Did: did, Bad: bad })
 	log.Printf("xx End %s", who)
+	if reboot {
+		go MongoWorker_Reader(wid, wType, cfg)
+	}
 } // end func MongoWorker_Reader
 
 // MongoInsertOneArticle is a function that inserts a single article into a MongoDB collection.
