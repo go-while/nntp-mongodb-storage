@@ -136,27 +136,25 @@ type MongoReadRequest struct {
 } // end type MongoReadRequest struct
 ```
 
-Let's explain the fields of the `MongoReadRequest` struct:
+#Explanation of the fields in the MongoReadRequest struct:
 
-- Msgidhashes: A slice of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection.
+- Msgidhashes: A slice of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection. This field allows the MongoWorker_Reader to know which articles to retrieve from the database.
 
-- RetChan: A channel used to receive the fetched articles as `[]*MongoArticle`.
+- RetChan: A channel used to receive the fetched articles as []*MongoArticle. The fetched articles will be sent through this channel upon successful retrieval.
 
--   The fetched articles will be sent through this channel upon successful retrieval.
+- []*MongoArticle: This is a slice (dynamic array) of pointers to MongoArticle objects. It can hold multiple pointers to MongoArticle objects, allowing for the representation of multiple articles that are fetched from the database.
 
-- `[]*MongoArticle` is a slice of pointers to MongoArticle.
-- `[]*MongoArticle`: This is a slice (dynamic array) of pointers to MongoArticle objects. It can hold multiple pointers to MongoArticle objects, allowing for the representation of multiple articles.
-- `*MongoArticle`: This is a pointer to a MongoArticle object. Instead of holding the actual MongoArticle value, it holds the memory address where the MongoArticle is stored.
+- *MongoArticle: This is a pointer to a MongoArticle object. Instead of holding the actual MongoArticle value, it holds the memory address where the MongoArticle is stored. Using pointers allows for efficient memory usage when dealing with large datasets, as only the memory addresses are passed around, rather than duplicating the entire data.
 
-Using a slice of pointers is common when dealing with structures like databases or other data collections.
-It allows for efficient memory usage and easy modification of elements in the collection without copying the entire content.
-When fetching multiple articles from the MongoDB collection, it's common to use `[]*MongoArticle` to store and handle the results efficiently.
+- *MongoArticle.Found: This is a boolean flag that indicates whether the requested article with the corresponding MessageIDHash was found in the MongoDB collection or not. When the MongoWorker_Reader retrieves an article, it sets this flag to 'true'. If the article is not found in the database, the flag is set to 'false'.
+
+
 
 
 # MongoArticle Struct
-MongoArticle: This is a struct type representing an article in the MongoDB collection.
+The MongoArticle struct represents an article in the MongoDB collection.
 
-It contains various fields like MessageIDHash, MessageID, Newsgroups, Head, Headsize, Body, Bodysize, Enc, and Found.
+It contains various fields to store information about the article.
 
 ```go
 type MongoArticle struct {
@@ -171,80 +169,120 @@ type MongoArticle struct {
 	Found         bool
 } // end type MongoArticle struct
 ```
-
 The `MongoArticle` struct is a custom data type defined in the codebase, which represents an article to be stored in and retrieved from a MongoDB database.
 
-It defines the structure and fields that will be used to map data between Go language objects and BSON (Binary JSON) documents in the MongoDB collection.
+- MessageIDHash: The unique identifier (hash) for the article, represented as a string and mapped to the `_id` field in the MongoDB collection.
 
-Let's explain the fields of the `MongoArticle` struct:
+- `MessageID`: The Message-ID of the article, represented as a string and mapped to the `msgid` field in the MongoDB collection.
 
-- `MessageIDHash`: This field represents the unique identifier of the article and is mapped to the `_id` field in the MongoDB collection. The `_id` field in MongoDB is a special field that uniquely identifies each document in a collection.
+- `Newsgroups`: A slice of strings representing the newsgroups associated with the article. It is mapped to the `newsgroups` field in the MongoDB collection.
 
-- `MessageID`: This field contains the message identifier of the article, which may be used for further identification and linking purposes. It is mapped to the `msgid` field in the MongoDB collection.
+- `Head`: The header of the article, represented as a byte slice and mapped to the `head` field in the MongoDB collection.
 
-- `Newsgroups`: This field is an array of strings that stores the newsgroups associated with the article. Newsgroups are used in Usenet systems to categorize and organize articles. In MongoDB, this field is mapped to the `newsgroups` array.
+- `Headsize`: The size of the article's header in bytes, represented as an integer and mapped to the `hs` field in the MongoDB collection.
 
-- `Head`: This field represents the header of the article and is stored as a byte slice. The header typically contains metadata and additional information about the article. In MongoDB, the `head` field is mapped to a BSON binary field.
+- `Body`: The body of the article, represented as a byte slice and mapped to the `body` field in the MongoDB collection.
 
-- `Headsize`: This field stores the size of the header data in bytes. It is an integer field and is mapped to the `hs` field in the MongoDB collection.
+- `Bodysize`: The size of the article's body in bytes, represented as an integer and mapped to the `bs` field in the MongoDB collection.
 
-- `Body`: Similar to the `Head` field, this field represents the body of the article and is stored as a byte slice. The body contains the main content of the article. In MongoDB, the `body` field is mapped to a BSON binary field.
+- `Enc`: An integer representing the encoding type of the article, mapped to the `enc` field in the MongoDB collection.
 
-- `Bodysize`: This field stores the size of the body data in bytes. It is an integer field and is mapped to the `bs` field in the MongoDB collection.
-
-- `Enc`: This field represents an integer indicating the type of encoding used for the article. The specific encoding types are not provided in the code snippet, but they could be custom encodings or standard ones like GZIP or ZLIB.
-
-- `Found`: This field is a boolean flag used during certain operations to indicate whether the article has been found or exists. It is not mapped to the MongoDB collection since it is not persisted but used internally within the application.
-
-Overall, the `MongoArticle` struct defines the schema for articles to be stored in the MongoDB collection, and it provides a convenient way to interact with article data in the Go codebase while seamlessly mapping to and from MongoDB documents.
+- `Found`: A boolean flag that is used to indicate whether the article was found during a retrieval operation. It is initially set to false and may be modified by the MongoWorker_Reader to indicate if an article was successfully retrieved.
 
 
-# MongoDB Workers
+# Workers
 
-The MongoDB Workers are designed to handle article inserts, deletes, and reads concurrently, providing significant performance improvements when dealing with a large number of articles.
+Multiple workers can be spawned concurrently to handle article inserts, deletes, and reads in parallel. This concurrency can significantly improve the overall insertion performance, especially when dealing with a large number of articles.
 
 ## MongoWorker_Insert
 
-MongoWorker_Insert is responsible for inserting articles into the specified MongoDB collection.
+The `MongoWorker_Insert` is designed to run as a goroutine, and to optimize the insert process, multiple workers can be spawned concurrently. This concurrent approach enables parallel insertion of articles, leading to improved performance and reduced insert times, especially when dealing with a large number of articles.
 
-- By launching multiple MongoWorker_Insert instances concurrently (controlled by InsWorker), articles can be inserted in parallel, reducing insert times.
+The main program can control the level of concurrency by setting the number of `MongoWorker_Insert` instances (`InsWorker`) to be launched. Each worker will independently process insertion requests, making it possible to efficiently insert multiple articles simultaneously.
 
-- This concurrent approach efficiently distributes the write workload across available resources, avoiding bottlenecks and ensuring efficient insertion of multiple articles simultaneously.
+By utilizing multiple `MongoWorker_Insert` goroutines, the system can take full advantage of available resources, effectively distributing the write workload across multiple threads, cores, or even machines if necessary. This concurrency model helps to avoid bottlenecks and ensures that write operations are executed efficiently, providing a responsive and performant writing experience for the application.
 
-- Before starting the insertion process, the worker initializes and establishes a connection to the MongoDB database using the provided URI and database name.
+The `MongoWorker_Insert` is a component of the `mongostorage` package responsible for handling the insertion of articles into a MongoDB database. It operates as a worker goroutine, processing articles from a queue (`Mongo_Insert_queue`) and inserting them into the specified MongoDB collection.
 
-- Upon receiving an article from the Mongo_Insert_queue, the worker performs a duplicate check based on the MessageIDHash to avoid inserting duplicates.
+### Initialization
 
-- Optionally, the worker can apply compression to the article's header and body before insertion, based on the test case and configuration.
+Before starting the insertion process, the `MongoWorker_Insert` is created and initialized. It establishes a connection to the MongoDB database using the provided URI and database name.
 
-- The worker then inserts the article into the MongoDB collection and logs relevant information such as raw size, compressed size (if applied), and the success or failure of the insertion.
+### Article Insertion
+
+The worker listens to the `Mongo_Insert_queue`, which holds articles waiting to be inserted. As soon as an article becomes available in the queue, the worker dequeues it and starts the insertion process.
+
+### Duplicate Check
+
+Before inserting the article, the worker performs a duplicate check based on the `MessageIDHash` of the article. It queries the MongoDB collection to check if an article with the same `MessageIDHash` already exists. This is to avoid inserting duplicate articles in the database.
+
+### Compression (Optional)
+
+Depending on the test case and configuration, the `MongoWorker_Insert` may apply compression to the article's header and body before insertion. If compression is required, it compresses the data using either gzip or zlib compression algorithms.
+
+### Insertion
+
+After the duplicate check and optional compression, the worker inserts the article into the specified MongoDB collection.
+
+### Logging
+
+During the insertion process, the worker logs relevant information such as the raw size of the article, the size after compression (if applied), and the success or failure of the insertion.
 
 ## MongoWorker_Delete
 
-MongoWorker_Delete is responsible for deleting articles from the specified MongoDB collection.
+Similar to the `MongoWorker_Insert`, the `MongoWorker_Delete` is designed to operate as a goroutine with the potential for concurrent execution. By spawning multiple `MongoWorker_Delete` instances (`DelWorker`), the system can take advantage of parallel processing to efficiently handle article deletions from the MongoDB database.
 
-- By using multiple MongoWorker_Delete instances concurrently (controlled by DelWorker), the system efficiently handles article deletions from the MongoDB database, particularly useful for large datasets or frequently changing data.
+The concurrent nature of the `MongoWorker_Delete` allows for multiple worker goroutines to process article deletion requests concurrently. Each worker listens to the `Mongo_Delete_queue`, which holds article hashes waiting to be deleted. As soon as a hash becomes available in the queue, a worker dequeues it and initiates the deletion process.
 
-- The worker initializes and establishes a connection to the MongoDB database before starting the deletion process.
+With multiple `MongoWorker_Delete` instances running simultaneously, the application can efficiently handle a high volume of article deletion requests. This is particularly beneficial when dealing with large datasets or frequently changing data.
 
-- Upon receiving an article hash from the Mongo_Delete_queue, the worker proceeds to delete it from the MongoDB collection (if found) and logs the relevant information.
+The `MongoWorker_Delete` is a component of the `mongostorage` package responsible for handling the deletion of articles from a MongoDB database. It operates as a worker goroutine, processing article hashes from a queue (`Mongo_Delete_queue`) and deleting the corresponding articles from the specified MongoDB collection.
+
+### Initialization
+
+Before starting the deletion process, the `MongoWorker_Delete` is created and initialized. It establishes a connection to the MongoDB database using the provided URI and database name.
+
+### Article Deletion
+
+The worker listens to the `Mongo_Delete_queue`, which holds article hashes waiting to be deleted. As soon as a hash becomes available in the queue, the worker dequeues it and starts the deletion process.
+
+### Article Lookup
+
+The worker uses the provided article hash to query the MongoDB collection and find the article with the corresponding `MessageIDHash`.
+
+### Deletion
+
+Once the article is located based on the `MessageIDHash`, the worker proceeds to delete it from the MongoDB collection.
+
+### Logging
+
+During the deletion process, the worker logs relevant information such as the article hash being processed and whether the deletion was successful or encountered an error.
 
 ## MongoWorker_Reader
 
-MongoWorker_Reader is responsible for handling read requests to retrieve articles from the MongoDB database.
+The `MongoWorker_Reader` is designed to run as a goroutine, and to optimize the reading process, multiple workers can be spawned concurrently. This concurrent approach enables parallel retrieval of articles, leading to improved performance and reduced read times, especially when dealing with a large number of articles.
 
-- By launching multiple MongoWorker_Reader instances concurrently (controlled by GetWorker), articles can be retrieved in parallel, reducing read times.
+The main program can control the level of concurrency by setting the number of `MongoWorker_Reader` instances (`GetWorker`) to be launched. Each worker will independently process read requests, making it possible to efficiently retrieve multiple articles simultaneously.
 
-- By using multiple MongoWorker_Reader instances concurrently (controlled by GetWorker), the system efficiently handles article deletions from the MongoDB database, particularly useful for large datasets or frequently changing data.
+By utilizing multiple `MongoWorker_Reader` goroutines, the system can take full advantage of available resources, effectively distributing the read workload across multiple threads, cores, or even machines if necessary. This concurrency model helps to avoid bottlenecks and ensures that read operations are executed efficiently, providing a responsive and performant reading experience for the application.
 
-- Before starting the reading process, the worker initializes and establishes a connection to the MongoDB database.
+The `MongoWorker_Reader` is a component of the `mongostorage` package responsible for handling read/get requests for articles to retrieve from a MongoDB database. It operates as a worker goroutine, processing read requests from a queue (`Mongo_Reader_queue`) and retrieving the corresponding articles from the specified MongoDB collection.
 
-- The worker listens to the Mongo_Reader_queue for read requests, each represented as a `MongoReadRequest` struct containing article hashes (`Msgidhashes`) and a return channel (`RetChan`) for sending back the retrieved articles.
+### Initialization
 
-- Upon receiving a read request, the worker queries the MongoDB collection to retrieve the corresponding articles based on the provided article hashes (`Msgidhashes`).
+Before starting the reading process, the `MongoWorker_Reader` is created and initialized. It establishes a connection to the MongoDB database using the provided URI and database name.
 
-- Once the articles are retrieved, the worker sends them back to the main program through the `RetChan` channel of the corresponding `MongoReadRequest` struct, enabling efficient and concurrent reading of articles from the database.
+### Read Operations
 
+The worker listens to the `Mongo_Reader_queue`, which holds read requests waiting to be processed. Each read request is represented as a `MongoReadRequest` struct containing a list of article hashes (`Msgidhashes`) and a return channel (`RetChan`) to send back the retrieved articles. As soon as a read request becomes available in the queue, the worker dequeues it and starts the reading process.
+
+### Article Retrieval
+
+The worker uses the provided list of article hashes (`Msgidhashes`) to query the MongoDB collection and retrieve the corresponding articles. It searches for articles with matching `MessageIDHash` values in the collection.
+
+### Return Results
+
+Once the articles are retrieved, the worker sends them back to the main program through the `RetChan` channel of the corresponding `MongoReadRequest` struct. This allows the main program to receive the requested articles and process them further.
 
 
 
