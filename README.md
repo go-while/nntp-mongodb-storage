@@ -205,7 +205,7 @@ MongoWorker_Insert is responsible for inserting articles into the specified Mong
 - This concurrent approach efficiently distributes the write workload across available resources, avoiding bottlenecks and ensuring efficient insertion of multiple articles simultaneously.
 - Before starting the insertion process, the worker initializes and establishes a connection to the MongoDB database using the provided URI and database name.
 - Upon receiving an article from the Mongo_Insert_queue, the worker performs a duplicate check based on the MessageIDHash to avoid inserting duplicates.
-- Optionally, the sender can apply compression to the article's header and body before insertion, based on the case and configuration.
+- Optionally, before sending an article to the Mongo_Insert_queue for insertion, the sender can apply compression to the article's header and body based.
 - The worker then inserts the article into the MongoDB collection and logs relevant information such as raw size, compressed size (if applied), and the success or failure of the insertion.
 
 
