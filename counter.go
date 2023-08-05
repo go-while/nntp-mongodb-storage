@@ -15,7 +15,6 @@ func (c *COUNTER) Init() {
 	c.mux.Unlock()
 } // end func Counter.Init
 
-
 func (c *COUNTER) Get(name string) uint64 {
 	c.mux.Lock()
 	retval := c.m[name]

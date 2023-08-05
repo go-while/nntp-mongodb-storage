@@ -6,7 +6,6 @@ import (
 	"time"
 )
 
-
 // calculateExponentialBackoff is a function that takes an integer 'attempt' representing the current attempt number for a retry operation.
 // It calculates the backoff duration to be used before the next retry based on exponential backoff with jitter.
 // function written by AI.
@@ -296,17 +295,17 @@ func workerStatus() {
 	for {
 		select {
 
-			case <- timeout:
+		case <-timeout:
 
-				Counter.Set("Did_mongoWorker_Reader", counter["reader"]["did"])
-				Counter.Set("Did_mongoWorker_Delete", counter["delete"]["did"])
-				Counter.Set("Did_mongoWorker_Insert", counter["insert"]["did"])
+			Counter.Set("Did_mongoWorker_Reader", counter["reader"]["did"])
+			Counter.Set("Did_mongoWorker_Delete", counter["delete"]["did"])
+			Counter.Set("Did_mongoWorker_Insert", counter["insert"]["did"])
 
-				Counter.Set("Running_mongoWorker_Reader", counter["reader"]["run"])
-				Counter.Set("Running_mongoWorker_Delete", counter["delete"]["run"])
-				Counter.Set("Running_mongoWorker_Insert", counter["insert"]["run"])
+			Counter.Set("Running_mongoWorker_Reader", counter["reader"]["run"])
+			Counter.Set("Running_mongoWorker_Delete", counter["delete"]["run"])
+			Counter.Set("Running_mongoWorker_Insert", counter["insert"]["run"])
 
-				timeout = time.After(time.Millisecond * 1000)
+			timeout = time.After(time.Millisecond * 1000)
 
 		case nu := <-worker_status_chan:
 

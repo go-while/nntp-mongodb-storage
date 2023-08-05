@@ -181,8 +181,4 @@ func DecompressData(input []byte, algo int) ([]byte, error) {
 	}
 } // end func DecompressData
 
-
-
-
-
 // EOF mongodb_storage.go : package mongostorage
