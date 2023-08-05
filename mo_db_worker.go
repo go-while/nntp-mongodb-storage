@@ -89,7 +89,7 @@ forever:
 			}
 
 			if do_insert {
-				log.Printf("Pre-Ins Many msgidhashes=%d", len_arts)
+				log.Printf("%s Pre-Ins Many msgidhashes=%d", who, len_arts)
 				did += len_arts
 				ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 				if err := MongoInsertManyArticles(ctx, collection, articles); err != nil {
@@ -103,9 +103,9 @@ forever:
 						ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 						if retbool, err := CheckIfArticleExistsByMessageIDHash(ctx, collection, article.MessageIDHash); retbool {
 							// The article with the given hash exists.
-							log.Printf("article exists: %s", *article.MessageIDHash)
+							log.Printf("%s article exists: %s", who, *article.MessageIDHash)
 						} else if err != nil {
-							log.Printf("Error CheckIfArticleExistsByMessageIDHash: %s err %v", *article.MessageIDHash, err)
+							log.Printf("Error %s CheckIfArticleExistsByMessageIDHash: %s err %v", who, *article.MessageIDHash, err)
 						}
 					}
 				}
@@ -132,7 +132,7 @@ forever:
 				updateWorkerStatus(wType, update{Did: did, Bad: bad})
 				did, bad = 0, 0
 			}
-			maxID := iStop_Worker("insert")
+			maxID := iStop_Worker(*wType)
 			if wid > maxID {
 				log.Printf("-- Stopping %s", who)
 				break forever // stop Worker
@@ -213,7 +213,7 @@ forever:
 		} // check if do_delete
 
 		if do_delete {
-			log.Printf("Pre-Del Many msgidhashes=%d", len_hashs)
+			log.Printf("%s Pre-Del Many msgidhashes=%d", who, len_hashs)
 			ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 			MongoDeleteManyArticles(ctx, collection, msgidhashes) // TODO catch error !
 			msgidhashes = []string{}
@@ -234,7 +234,7 @@ forever:
 			//log.Printf("%s process Mongo_Delete_queue", who)
 			if cfg.DelBatch == 1 { // deletes articles one by one
 				for messageIDHash := range Mongo_Delete_queue {
-					log.Printf("Pre-Del One msgidhash='%s'", msgidhash)
+					log.Printf("%s Pre-Del One msgidhash='%s'", who, msgidhash)
 					ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 					err := DeleteArticlesByMessageIDHash(ctx, collection, messageIDHash)
 					if err != nil {
@@ -242,7 +242,7 @@ forever:
 						bad++
 						continue
 					}
-					log.Printf("Deleted messageIDHash=%s", messageIDHash)
+					log.Printf("%s Deleted messageIDHash=%s", who, messageIDHash)
 				}
 			} else {
 				msgidhashes = append(msgidhashes, msgidhash)
@@ -326,7 +326,7 @@ forever:
 			articles, err := readArticlesByMessageIDHashes(ctx, collection, readreq.Msgidhashes)
 			if err != nil {
 				bad++
-				log.Printf("Error readArticlesByMessageIDHashes hashs=%d err='%v'", len(readreq.Msgidhashes), err)
+				log.Printf("Error %s readArticlesByMessageIDHashes hashs=%d err='%v'", who, len(readreq.Msgidhashes), err)
 				reboot = true
 				break forever
 			}
@@ -337,7 +337,7 @@ forever:
 				readreq.RetChan <- articles // MongoReadReqReturn{ Articles: articles }
 				// sender does not close the readreq.RetChan here so it can be reused for next read request
 			} else {
-				log.Printf("WARN got %d/%d read articles readreq.RetChan=nil", len_got_arts, len_request)
+				log.Printf("WARN %s got %d/%d read articles readreq.RetChan=nil", who, len_got_arts, len_request)
 			}
 			// Do something with the articles, e.g., handle them or send them to another channel.
 		case <-timeout:
