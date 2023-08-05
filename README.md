@@ -46,7 +46,7 @@ The integer parameters DelWorker, InsWorker, and GetWorker determine the level o
 
 The integer parameters `DelQueue`, `InsQueue`, and `GetQueue` control the length of the respective channels to manage buffering of requests before the send operation blocks.
 
-# Load_MongoDB: Parameters
+# Load_MongoDB: cfg Parameters
 You can adjust the number of worker goroutines and queue sizes based on your application's requirements and the available resources.
 
 - `MongoURI` (string): A string representing the MongoDB connection URI. It should include the necessary authentication details and the address of the MongoDB server.
@@ -61,9 +61,13 @@ You can adjust the number of worker goroutines and queue sizes based on your app
 
 - `DelQueue` (int): The size of the delete queue. It specifies how many delete requests can be buffered before the send operation blocks. If DelQueue is 0 or negative, a default value will be used. The DelQueue parameter sets the maximum number of article deletion requests that can be buffered before the worker goroutines start processing them. When the number of articles to delete exceeds this limit, the send operation on the Mongo_Delete_queue channel will block until space becomes available in the queue.
 
+- `DelBatch` (int): Sets the number of Msgidhashes a DeleteWorker will cache before deleting to batch into one process.
+
 - `InsWorker` (int): The number of worker goroutines to handle article insertions. It determines the level of concurrency for insertion operations. The InsWorker parameter determines the number of worker goroutines assigned to handle article insertions. This parameter controls the concurrency for insertion operations, allowing multiple articles to be inserted simultaneously.
 
 - `InsQueue` (int): The size of the insert queue. It specifies how many article insertion requests can be buffered before the send operation blocks. If InsQueue is 0 or negative, a default value will be used. The InsQueue parameter specifies the maximum number of article insertion requests that can be buffered in the queue before the worker goroutines process them. If the number of pending insertions exceeds this limit, the send operation on the Mongo_Insert_queue channel will block.
+
+- `InsBatch` (int): Sets the number of Articles an InsertWorker will cache before inserting to batch into one process.
 
 - `GetWorker` (int): The number of worker goroutines to handle article reads. It determines the level of concurrency for read operations. The GetWorker parameter sets the number of worker goroutines responsible for handling article reads. This parameter controls the level of concurrency for read operations, enabling multiple read requests to be processed concurrently.
 
