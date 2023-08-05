@@ -503,7 +503,9 @@ forever:
 
 			if do_insert {
 				log.Printf("Pre-Ins Many msgidhashes=%d", len_arts)
+				ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 				if err := MongoInsertManyArticles(ctx, collection, articles); err != nil {
+					log.Printf("Error MongoInsertManyArticles err='%v'", err)
 					// connection error
 					if len(articles) > 0 {
 						go func(articles []*MongoArticle){
