@@ -24,13 +24,13 @@ func calculateExponentialBackoff(attempt int) time.Duration {
 	return backoffDuration + jitter
 } // end func calculateExponentialBackoff
 
-// MongoWorker_UpDN_Random periodically sends random up/down (true/false) signals to the worker channels.
+// MongoWorker_UpDn_Random periodically sends random up/down (true/false) signals to the worker channels.
 // The purpose of this function is to simulate random up/down requests to control the worker
 // function not written by AI.
 // ./mongodbtest -randomUpDN -test-num 0
-func MongoWorker_UpDN_Random() {
+func MongoWorker_UpDn_Random() {
 	isleep := 1
-	log.Print("Start mongostorage.MongoWorker_UpDN_Random")
+	log.Print("Start mongostorage.MongoWorker_UpDn_Random")
 	for {
 		arandA := rand.Intn(2)
 		arandB := rand.Intn(4)
@@ -61,7 +61,7 @@ func MongoWorker_UpDN_Random() {
 		default:
 		}
 	}
-} // end func MongoWorker_UpDN_Random
+} // end func MongoWorker_UpDn_Random
 
 // The iStop_Worker function is responsible for stopping a specific type of worker (reader, delete, or insert)
 // The function uses channels to communicate with the worker goroutines and control their termination.
