@@ -9,17 +9,17 @@ import (
 	"time"
 )
 
-// extendContextTimeout extends the deadline of a given context by canceling the previous
+// ExtendContextTimeout extends the deadline of a given context by canceling the previous
 // function written by AI.
-func extendContextTimeout(ctx context.Context, cancel context.CancelFunc, MongoTimeout int64) (context.Context, context.CancelFunc) {
-	//log.Printf("extendContextTimeout")
+func ExtendContextTimeout(ctx context.Context, cancel context.CancelFunc, MongoTimeout int64) (context.Context, context.CancelFunc) {
+	//log.Printf("ExtendContextTimeout")
 	cancel()
 	newTimeout := time.Second * time.Duration(MongoTimeout)
 	//deadline := time.Now().Add(newTimeout)
 	ctx, cancel = context.WithTimeout(context.Background(), newTimeout)
 	//ctx, cancel = context.WithDeadline(context.Background(), deadline)
 	return ctx, cancel
-} // end func extendContextTimeout
+} // end func ExtendContextTimeout
 
 // requeue_Articles requeues a slice of articles into the MongoDB insert queue.
 func requeue_Articles(articles []*MongoArticle) {
@@ -90,7 +90,7 @@ forever:
 			if do_insert {
 				log.Printf("%s Pre-Ins Many msgidhashes=%d", who, len_arts)
 				did += len_arts
-				ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
+				ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 				if err := MongoInsertManyArticles(ctx, collection, articles); err != nil {
 					// connection error
 					go requeue_Articles(articles)
@@ -99,7 +99,7 @@ forever:
 				}
 				if cfg.TestAfterInsert {
 					for _, article := range articles {
-						ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
+						ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 						if retbool, err := CheckIfArticleExistsByMessageIDHash(ctx, collection, article.MessageIDHash); retbool {
 							// The article with the given hash exists.
 							log.Printf("%s article exists: %s", who, *article.MessageIDHash)
@@ -136,7 +136,7 @@ forever:
 				log.Printf("-- Stopping %s", who)
 				break forever // stop Worker
 			}
-			timeout = time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
+			timeout = newFlushTimer(cfg)
 			//log.Printf("mongoWorker_Insert alive hashs=%d", len(msgidhashes))
 		} // end select insert_queue
 	} // end for forever
@@ -212,7 +212,7 @@ forever:
 
 		if do_delete {
 			log.Printf("%s Pre-Del Many msgidhashes=%d", who, len_hashs)
-			ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
+			ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 			MongoDeleteManyArticles(ctx, collection, msgidhashes) // TODO catch error !
 			msgidhashes = []string{}
 			last_delete = utils.UnixTimeMilliSec()
@@ -233,7 +233,7 @@ forever:
 			if cfg.DelBatch == 1 { // deletes articles one by one
 				for messageIDHash := range Mongo_Delete_queue {
 					log.Printf("%s Pre-Del One msgidhash='%s'", who, msgidhash)
-					ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
+					ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 					err := DeleteArticlesByMessageIDHash(ctx, collection, messageIDHash)
 					if err != nil {
 						log.Printf("Error deleting messageIDHash=%s err='%v'", messageIDHash, err)
@@ -260,7 +260,7 @@ forever:
 				log.Printf("-- Stopping %s", who)
 				break forever // stop Worker
 			}
-			timeout = time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
+			timeout = newFlushTimer(cfg)
 			//log.Printf("mongoWorker_Delete alive hashs=%d", len(msgidhashes))
 			//break select_delete_queue
 		} // end select delete_queue
@@ -322,7 +322,7 @@ forever:
 			// DEBUG time.Sleep(time.Second)
 			//log.Printf("%s process Mongo_Reader_queue", who)
 			did++
-			ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
+			ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 			// Read articles for the given msgidhashes.
 			articles, err := ReadArticlesByMessageIDHashes(ctx, collection, readreq.Msgidhashes)
 			if err != nil {
@@ -352,7 +352,7 @@ forever:
 				log.Printf("-- Stopping %s", who)
 				break forever
 			}
-			timeout = time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
+			timeout = newFlushTimer(cfg)
 			//log.Printf("mongoWorker_Reader alive hashs=%d", len(msgidhashes))
 			//break reader_queue
 		} // end select
