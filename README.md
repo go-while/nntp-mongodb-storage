@@ -80,16 +80,22 @@ func main() {
 	// Create a context with a timeout and pass it to the functions in the mongostorage package
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
 	hash1, hash2, hash3 := "hash1", "hash2, "hash3"
+	head1 := []byte("This is the head of article 1")
+	body1 := []byte("This is the body of article 1")
+	head2 := []byte("This is the head of article 2")
+	body2 := []byte("This is the body of article 2")
+
 	// Example of inserting a single article
 	article := &mongostorage.MongoArticle{
 			MessageIDHash: &hash1,
 			MessageID:     &hash1,
 			Newsgroups:    []*string{"group1", "group2"},
-			Head:          *[]byte("This is the head of article 1"),
-			Headsize:      100,
-			Body:          *[]byte("This is the body of article 1"),
-			Bodysize:      200,
+			Head:          &head1,
+			Headsize:      len(head1),
+			Body:          &body1,
+			Bodysize:      len(body1),
 			Enc:           0, // not compressed
 	}
 	err = mongostorage.InsertOneArticle(ctx, collection, article)
@@ -103,30 +109,30 @@ func main() {
 			MessageIDHash: &hash1,
 			MessageID:     &hash1,
 			Newsgroups:    []*string{"group1", "group2"},
-			Head:          *[]byte("This is the head of article 1"),
-			Headsize:      100,
-			Body:          *[]byte("This is the body of article 1"),
-			Bodysize:      200,
+			Head:          &head1,
+			Headsize:      len(head1),
+			Body:          &body1,
+			Bodysize:      len(body1),
 			Enc:           0, // not compressed
 		},
 		{
 			MessageIDHash: &hash1,  // will generate a duplicate error
 			MessageID:     &hash1,
 			Newsgroups:    []*string{"group1", "group2"},
-			Head:          *[]byte("This is the head of article 1"),
-			Headsize:      100,
-			Body:          *[]byte("This is the body of article 1"),
-			Bodysize:      200,
+			Head:          &head1,
+			Headsize:      len(head1),
+			Body:          &body1,
+			Bodysize:      len(body1),
 			Enc:           1, // indicator: compressed with GZIP (sender has to apply de/compression)
 		},
 		{
-			MessageIDHash: &hash1,
-			MessageID:     &hash1,
+			MessageIDHash: &hash2,
+			MessageID:     &hash2,
 			Newsgroups:    []*string{"group3", "group4"},
-			Head:          *[]byte("This is the head of article 2"),
-			Headsize:      150,
-			Body:          *[]byte("This is the body of article 2"),
-			Bodysize:      300,
+			Head:          &head2,
+			Headsize:      len(head2),
+			Body:          &body2,
+			Bodysize:      len(body2),
 			Enc:           2, // indicator: compressed with ZLIB (sender has to apply de/compression)
 		},
 		// Add more articles as needed
