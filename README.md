@@ -132,6 +132,15 @@ func main() {
 		log.Println("Articles inserted successfully.")
 	}
 
+	// Check if the error is a duplicate key error using the IsDup function.
+	if IsDup(err) {
+		log.Println("Duplicate key error: The document already exists.")
+		// Handle the duplicate key error here, if needed.
+	} else {
+		log.Println("Other error occurred:", err)
+		// Handle other write errors, if needed.
+	}
+
 	// Example of retrieving an article
 	messageIDHash := "your-article-message-id-hash"
 	article, err := mongostorage.RetrieveArticleByMessageIDHash(ctx, collection, messageIDHash)
