@@ -166,8 +166,21 @@ func main() {
 	}
 
 }
-
 ```
+
+- The `MessageIDHash` field in the `MongoArticle` struct serves as an identifier for each article in the MongoDB collection.
+
+- The name "hash" in `MessageIDHash` does not necessarily imply that it must be a cryptographic hash; it can be any string, and it acts as a unique identifier for the document in the collection.
+
+- The field `MessageIDHash` is connected to the MongoDB's special `_id` field, which uniquely identifies each document in a collection.
+
+- MongoDB requires each document to have a unique value for its `_id` field.
+
+- By setting the MessageIDHash as the value of the `_id` field, we ensure that each article is uniquely identified in the collection.
+
+- Additionally, the MongoArticle struct also contains a separate field named MessageID, which can store the original, non-hashed version of the article's identifier.
+
+- This allows developers to store both the original identifier and the hashed identifier in the same document, providing flexibility and convenience when working with the articles.
 
 
 ## Getting Started
