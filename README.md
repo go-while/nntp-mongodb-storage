@@ -47,7 +47,9 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 - The integer parameters `DelQueue`, `InsQueue`, and `GetQueue` control the length of the respective channels to manage buffering of requests before the send operation blocks.
 
 # Load_MongoDB: cfg Parameters
-You can adjust the number of worker goroutines and queue sizes based on your application's requirements and the available resources.
+- You can adjust the number of worker goroutines and queue sizes based on your application's requirements and the available resources.
+
+- Custom configurations can be provided when setting up the MongoDB storage package to optimize its performance for your application.
 
 - `MongoURI` (string): A string representing the MongoDB connection URI. It should include the necessary authentication details and the address of the MongoDB server.
 
@@ -73,54 +75,12 @@ You can adjust the number of worker goroutines and queue sizes based on your app
 
 - `GetQueue` (int): The size of the read queue. It specifies how many read requests can be buffered before the send operation blocks. If GetQueue is 0 or negative, a default value will be used. The GetQueue parameter defines the maximum length of the read request queue. When the number of read requests exceeds this limit, the send operation on the Mongo_Reader_queue channel will block until space becomes available.
 
-- `TestAfterInsert` (bool): A flag indicating whether to perform a test after an article insertion. The specific test details are not provided in the function, and the flag can be used for application-specific testing purposes.
-
-
-# MongoDB Storage Configuration
-
-This document describes the default configuration options for the MongoDB storage package.
-
-These constants define various settings used when no specific values are provided during the MongoDB setup.
-
-## Default MongoDB Connection
-
-- `DefaultMongoURI`: The default MongoDB connection string used when no URI is provided. It points to `mongodb://localhost:27017`, indicating the MongoDB server is running on the local machine on the default port 27017.
-
-## Default Database and Collection Names
-
-- `DefaultMongoDatabaseName`: The default name of the MongoDB database used when no database name is provided. Default Value:"nntp" by default.
-
-- `DefaultMongoCollection`: The default name of the MongoDB collection used when no collection name is provided. The collection name is set to "articles" by default.
-
-## Default MongoDB Timeout
-
-- `DefaultMongoTimeout`: The default timeout value (in seconds) for connecting to MongoDB. The timeout is set to 15 seconds.
-
-## Default Worker and Queue Settings
-
-- `DefaultDelWorker`: The number of `DeleteWorker` instances to start by default. Default = 1
-
-- `DefaultDelQueue`: The number of delete requests allowed to be queued. Default = 1
-
-- `DefaultDeleteBatchsize`: The number of Msgidhashes a `DeleteWorker` will cache before deleting to batch into one process. Default = 1
-
-- `DefaultInsWorker`: The number of `InsertWorker` instances to start by default. Default = 1
-
-- `DefaultInsQueue`: The number of insert requests allowed to be queued. Default = 1
-
-- `DefaultInsertBatchsize`: The number of articles an `InsertWorker` will cache before inserting to batch into one process. Default = 1
-
-- `DefaultGetWorker`: The number of `ReaderWorker` instances to start by default. Default = 1
-
-- `DefaultGetQueue`: The total queue length for all `ReaderWorker` instances. Default = 1
-
 - `FlushTimer`: The time in milliseconds for flushing batched operations to MongoDB. Default = 1000
 
 - Setting `FlushTimer` too low may waste CPU cycles, and if you want instant processing, keep the Insert/DeleteBatchsizes as 1 (default).
 
-Please note that these default values can be adjusted according to your specific requirements and available system resources.
+- `TestAfterInsert` (bool): A flag indicating whether to perform a test after an article insertion. The specific test details are not provided in the function, and the flag can be used for application-specific testing purposes.
 
-Custom configurations can be provided when setting up the MongoDB storage package to optimize its performance for your application.
 
 
 ## Compression Constants (Magic Numbers)
