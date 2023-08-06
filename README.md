@@ -290,17 +290,20 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 ```go
 type MongoReadRequest struct {
 	Msgidhashes []*string
+	STAT        bool
 	RetChan     chan []*MongoArticle
 } // end type MongoReadRequest struct
 ```
 
 #Explanation of the fields in the MongoReadRequest struct:
 
-- []*Msgidhash: A slice of pointers to string, representing a list of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection. This field allows the mongoWorker_Reader to know which articles to retrieve from the database.
+- `[]*Msgidhash`: A slice of pointers to string, representing a list of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection. This field allows the mongoWorker_Reader to know which articles to retrieve from the database.
 
-- RetChan: A channel used to receive the fetched articles as []*MongoArticle. The fetched articles will be sent through this channel upon successful retrieval.
+- `RetChan`: A channel used to receive the fetched articles as `[]*MongoArticle`. The fetched articles will be sent through this channel upon successful retrieval from the MongoDB collection.
 
-- []*MongoArticle: This is a slice (dynamic array) of pointers to MongoArticle objects. It can hold multiple pointers to MongoArticle objects, allowing for the representation of multiple articles that are fetched from the database.
+- `STAT` (bool): STAT is used to control the behavior of the read request. If STAT is set to true, it indicates that the request is for checking if the articles with the given MessageIDHashes exist in the MongoDB collection without actually retrieving their content. The CheckIfArticleExistsByMessageIDHash function will be called instead of retrieving the full articles.
+
+- `[]*MongoArticle`: This is a slice (dynamic array) of pointers to MongoArticle objects. It can hold multiple pointers to MongoArticle objects, allowing for the representation of multiple articles that are fetched from the database.
 
 - *MongoArticle: This is a pointer to a MongoArticle object. Instead of holding the actual MongoArticle value, it holds the memory address where the MongoArticle is stored. Using pointers allows for efficient memory usage when dealing with large datasets, as only the memory addresses are passed around, rather than duplicating the entire data.
 
