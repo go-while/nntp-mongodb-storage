@@ -190,7 +190,7 @@ func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 		break
 	}
 	timeout := time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
-	msgidhashes := []string{}
+	msgidhashes := []*string{}
 	is_timeout := false
 	var diff int64
 	var last_delete int64
@@ -214,7 +214,7 @@ forever:
 			log.Printf("%s Pre-Del Many msgidhashes=%d", who, len_hashs)
 			ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 			DeleteManyArticles(ctx, collection, msgidhashes) // TODO catch error !
-			msgidhashes = []string{}
+			msgidhashes = []*string{}
 			last_delete = utils.UnixTimeMilliSec()
 			did += len(msgidhashes)
 		} else {
@@ -231,19 +231,17 @@ forever:
 			// DEBUG time.Sleep(time.Second)
 			//log.Printf("%s process Mongo_Delete_queue", who)
 			if cfg.DelBatch == 1 { // deletes articles one by one
-				for messageIDHash := range Mongo_Delete_queue {
-					log.Printf("%s Pre-Del One msgidhash='%s'", who, msgidhash)
-					ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
-					err := DeleteArticlesByMessageIDHash(ctx, collection, messageIDHash)
-					if err != nil {
-						log.Printf("Error deleting messageIDHash=%s err='%v'", messageIDHash, err)
-						bad++
-						continue
-					}
-					log.Printf("%s Deleted messageIDHash=%s", who, messageIDHash)
+				log.Printf("%s Pre-Del One msgidhash='%s'", who, msgidhash)
+				ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
+				err := DeleteArticlesByMessageIDHash(ctx, collection, &msgidhash)
+				if err != nil {
+					log.Printf("Error deleting messageIDHash=%s err='%v'", msgidhash, err)
+					bad++
+					continue
 				}
+				log.Printf("%s Deleted messageIDHash=%s", who, msgidhash)
 			} else {
-				msgidhashes = append(msgidhashes, msgidhash)
+				msgidhashes = append(msgidhashes, &msgidhash)
 				//log.Printf("Append Del Worker: msgidhash='%s' to msgidhashes=%d", msgidhash, len(msgidhashes))
 			}
 			if len(msgidhashes) >= cfg.DelBatch {
