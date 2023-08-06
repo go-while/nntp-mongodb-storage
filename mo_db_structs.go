@@ -15,25 +15,25 @@ const DefaultMongoCollection string = "articles"
 const DefaultMongoTimeout int64 = 15
 
 // DefaultDelQueue sets the number of objects a DeleteWorker will queue before processing.
-const DefaultDelQueue int = 10
+const DefaultDelQueue int = 1
 
 // DefaultDelWorker sets the number of DeleteWorker instances to start by default.
 const DefaultDelWorker int = 1
 
 // DefaultDeleteBatchSize The number of Msgidhashes a DeleteWorker will cache before performing a batch delete operation in one process.
-const DefaultDeleteBatchSize int = 100
+const DefaultDeleteBatchSize int = 1
 
 // DefaultInsQueue sets the number of objects an InsertWorker will queue before processing.
-const DefaultInsQueue int = 10
+const DefaultInsQueue int = 1
 
 // DefaultInsWorker sets the number of InsertWorker instances to start by default.
 const DefaultInsWorker int = 1
 
 // DefaultInsertBatchSize The number of Articles an InsertWorker will cache before performing a batch insert operation in one process.
-const DefaultInsertBatchSize int = 100
+const DefaultInsertBatchSize int = 1
 
 // DefaultGetQueue sets the total queue length for all ReaderWorker instances.
-const DefaultGetQueue int = 10
+const DefaultGetQueue int = 1
 
 // DefaultGetWorker sets the number of ReaderWorker instances to start by default.
 const DefaultGetWorker int = 1
