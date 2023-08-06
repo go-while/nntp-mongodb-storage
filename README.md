@@ -91,7 +91,7 @@ func main() {
 			Body:          []byte("This is the body of article 1"),
 			Bodysize:      200,
 			Enc:           0, // not compressed
-		}
+	}
 	err = mongostorage.InsertOneArticle(ctx, collection, article)
 	if err != nil {
 		log.Printf("Error inserting article: %v", err)
@@ -150,7 +150,7 @@ func main() {
 
 	// Example of retrieving an article
 	messageIDHash := "your-article-message-id-hash"
-	article, err := mongostorage.RetrieveArticleByMessageIDHash(ctx, collection, messageIDHash)
+	article, err := mongostorage.RetrieveArticleByMessageIDHash(ctx, collection, &messageIDHash)
 	if err != nil {
 		log.Printf("Error retrieving article: %v", err)
 	} else if article != nil {
@@ -160,7 +160,8 @@ func main() {
 	}
 
 	// Example of retrieving multiple articles based on a list of MessageIDHashes
-	msgIDHashes := []*string{"hash1", "hash2", "hash3"}
+	hash1, hash2, hash3 := "hash1", "hash2", "hash3"
+	msgIDHashes := []*string{ &hash1, &hash2, &hash3, ...}
 	articles, err := mongostorage.RetrieveArticleByMessageIDHashes(ctx, collection, msgIDHashes)
 	if err != nil {
 		log.Printf("Error retrieving articles: %v", err)
