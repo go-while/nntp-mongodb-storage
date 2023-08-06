@@ -2,7 +2,7 @@
 
 ## MongoDB Storage Package for Usenet Articles
 
-- The mongostorage package offers a set of convenient functions for interacting with a MongoDB database and managing Usenet articles.
+- The mongostorage package offers a set of convenient functions for interacting with a MongoDB database and managing Usenet articles or anything else if your needs are satisfied by `type MongoArticle struct`.
 
 - It provides efficient and reliable methods for inserting, deleting, and retrieving Usenet articles in a MongoDB collection.
 
