@@ -83,8 +83,15 @@ func main() {
 
 	// Example of inserting a single article
 	article := &mongostorage.MongoArticle{
-		// Populate your article data here
-	}
+			MessageIDHash: strPtr("hash1"),
+			MessageID:     strPtr("msgid1"),
+			Newsgroups:    []string{"group1", "group2"},
+			Head:          []byte("This is the head of article 1"),
+			Headsize:      100,
+			Body:          []byte("This is the body of article 1"),
+			Bodysize:      200,
+			Enc:           0, // not compressed
+		}
 	err = mongostorage.InsertOneArticle(ctx, collection, article)
 	if err != nil {
 		log.Printf("Error inserting article: %v", err)
@@ -103,7 +110,7 @@ func main() {
 			Enc:           0, // not compressed
 		},
 		{
-			MessageIDHash: strPtr("hash1"),
+			MessageIDHash: strPtr("hash1"),  // will generate a duplicate error
 			MessageID:     strPtr("msgid1"),
 			Newsgroups:    []string{"group1", "group2"},
 			Head:          []byte("This is the head of article 1"),
