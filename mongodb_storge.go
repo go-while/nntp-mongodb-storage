@@ -16,8 +16,16 @@ import (
 	"log"
 	//"math/rand"
 	//"sync"
+	"strings"
 	"time"
 )
+
+const (
+	CR string = "\r"
+	LF string = "\n"
+	CRLF string = CR+LF
+)
+
 
 // Load_MongoDB initializes the MongoDB storage backend with the specified configuration parameters.
 // The function starts the worker goroutines in separate background routines.
@@ -200,3 +208,18 @@ func DecompressData(input *[]byte, algo int) error {
 	}
 	return err
 } // end func DecompressData
+
+
+func Strings2Byte(format string, input []string) (*[]byte, int) {
+	var output []byte
+	var size int
+	switch format {
+	case "wireformat":
+		output = []byte(strings.Join(input, CRLF)) // wireformat
+	case "fileformat":
+		output = []byte(strings.Join(input, LF)) // fileformat
+	}
+	size = len(output)
+	return &output, size
+} // end func Strings2Byte
+// EOF mongodbtest.go
