@@ -146,7 +146,7 @@ type MongoStorageConfig struct {
 type MongoArticle struct {
 	MessageIDHash *string   `bson:"_id"`
 	MessageID     *string   `bson:"msgid"`
-	Newsgroups    *[]string `bson:"newsgroups"`
+	Newsgroups    []*string `bson:"newsgroups"`
 	Head          *[]byte   `bson:"head"`
 	Headsize      int       `bson:"hs"`
 	Body          *[]byte   `bson:"body"`
