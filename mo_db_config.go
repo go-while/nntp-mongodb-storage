@@ -40,6 +40,9 @@ func GetDefaultMongoStorageConfig() MongoStorageConfig {
 		// Default number of reader worker goroutines
 		GetWorker: DefaultGetWorker,
 
+		// Default ms timer for Insert / Delete: will wait up to N millisec before flushing batched to mongodb
+		FlushTimer: DefaultFlushTimer,
+
 		// Default test flag for performing a test after an article insertion
 		TestAfterInsert: false, // You can change this to true if you want to perform a test after an article insertion.
 	}

@@ -66,8 +66,7 @@ func mongoWorker_Insert(wid int, wType *string, cfg *MongoStorageConfig) {
 		}
 		break
 	}
-	timeOutTime := int64(1)
-	timeout := time.After(time.Second * time.Duration(timeOutTime))
+	timeout := time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
 	articles := []*MongoArticle{}
 	is_timeout := false
 	var diff int64
@@ -77,11 +76,11 @@ forever:
 		do_insert := false
 		len_arts := len(articles)
 		if len_arts == cfg.InsBatch || is_timeout {
-			diff = utils.UnixTimeSec() - last_insert
+			diff = utils.UnixTimeMilliSec() - last_insert
 
 			if len_arts >= cfg.InsBatch {
 				do_insert = true
-			} else if is_timeout && len_arts > 0 && diff > timeOutTime {
+			} else if is_timeout && len_arts > 0 && diff > cfg.FlushTimer {
 				do_insert = true
 			}
 			if is_timeout {
@@ -109,7 +108,7 @@ forever:
 						}
 					}
 				}
-				last_insert = utils.UnixTimeSec()
+				last_insert = utils.UnixTimeMilliSec()
 				articles = []*MongoArticle{}
 			}
 		}
@@ -137,7 +136,7 @@ forever:
 				log.Printf("-- Stopping %s", who)
 				break forever // stop Worker
 			}
-			timeout = time.After(time.Second * time.Duration(timeOutTime))
+			timeout = time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
 			//log.Printf("mongoWorker_Insert alive hashs=%d", len(msgidhashes))
 		} // end select insert_queue
 	} // end for forever
@@ -190,8 +189,7 @@ func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 		}
 		break
 	}
-	timeOutTime := int64(1)
-	timeout := time.After(time.Second * time.Duration(timeOutTime))
+	timeout := time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
 	msgidhashes := []string{}
 	is_timeout := false
 	var diff int64
@@ -201,10 +199,10 @@ forever:
 		len_hashs := len(msgidhashes)
 		do_delete := false
 		if len_hashs == cfg.DelBatch || is_timeout {
-			diff = utils.UnixTimeSec() - last_delete
+			diff = utils.UnixTimeMilliSec() - last_delete
 			if len_hashs >= cfg.DelBatch {
 				do_delete = true
-			} else if is_timeout && len_hashs > 0 && diff > timeOutTime {
+			} else if is_timeout && len_hashs > 0 && diff > cfg.FlushTimer {
 				do_delete = true
 			}
 			if is_timeout {
@@ -217,7 +215,7 @@ forever:
 			ctx, cancel = extendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 			MongoDeleteManyArticles(ctx, collection, msgidhashes) // TODO catch error !
 			msgidhashes = []string{}
-			last_delete = utils.UnixTimeSec()
+			last_delete = utils.UnixTimeMilliSec()
 			did += len(msgidhashes)
 		} else {
 			//log.Printf("!do_delete len_hashs=%d is_timeout=%t last=%d", len_hashs, is_timeout, utils.UnixTimeSec() - last_insert)
@@ -262,7 +260,7 @@ forever:
 				log.Printf("-- Stopping %s", who)
 				break forever // stop Worker
 			}
-			timeout = time.After(time.Second * time.Duration(timeOutTime))
+			timeout = time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
 			//log.Printf("mongoWorker_Delete alive hashs=%d", len(msgidhashes))
 			//break select_delete_queue
 		} // end select delete_queue
@@ -274,6 +272,10 @@ forever:
 	updateWorkerStatus(wType, update{Did: did, Bad: bad})
 	log.Printf("xx End %s", who)
 } // end func mongoWorker_Delete
+
+func newFlushTimer(cfg *MongoStorageConfig) <-chan time.Time {
+	return time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
+}
 
 // mongoWorker_Reader is a goroutine function responsible for processing incoming read requests from the 'Mongo_Reader_queue'.
 // It reads articles from a MongoDB collection based on the given MessageIDHashes provided in the 'readreq' parameter.
@@ -306,8 +308,7 @@ func mongoWorker_Reader(wid int, wType *string, cfg *MongoStorageConfig) {
 		}
 		break
 	}
-	timeOutTime := int64(1)
-	timeout := time.After(time.Second * time.Duration(timeOutTime))
+	timeout := time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
 	reboot := false
 	// Process incoming read requests forever.
 forever:
@@ -351,7 +352,7 @@ forever:
 				log.Printf("-- Stopping %s", who)
 				break forever
 			}
-			timeout = time.After(time.Second * time.Duration(timeOutTime))
+			timeout = time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
 			//log.Printf("mongoWorker_Reader alive hashs=%d", len(msgidhashes))
 			//break reader_queue
 		} // end select

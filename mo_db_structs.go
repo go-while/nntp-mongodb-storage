@@ -15,28 +15,31 @@ const DefaultMongoCollection string = "articles"
 const DefaultMongoTimeout int64 = 15
 
 // DefaultDelQueue sets the number of objects a DeleteWorker will queue before processing.
-const DefaultDelQueue int = 2
+const DefaultDelQueue int = 10
 
 // DefaultDelWorker sets the number of DeleteWorker instances to start by default.
 const DefaultDelWorker int = 1
 
-// DefaultDeleteBatchSize sets the number of Msgidhashes a DeleteWorker will cache before deleting to batch into one process.
-const DefaultDeleteBatchSize int = 1
+// DefaultDeleteBatchSize The number of Msgidhashes a DeleteWorker will cache before performing a batch delete operation in one process.
+const DefaultDeleteBatchSize int = 100
 
 // DefaultInsQueue sets the number of objects an InsertWorker will queue before processing.
-const DefaultInsQueue int = 2
+const DefaultInsQueue int = 10
 
 // DefaultInsWorker sets the number of InsertWorker instances to start by default.
 const DefaultInsWorker int = 1
 
-// DefaultInsertBatchSize sets the number of Articles an InsertWorker will cache before inserting to batch into one process.
-const DefaultInsertBatchSize int = 1
+// DefaultInsertBatchSize The number of Articles an InsertWorker will cache before performing a batch insert operation in one process.
+const DefaultInsertBatchSize int = 100
 
 // DefaultGetQueue sets the total queue length for all ReaderWorker instances.
-const DefaultGetQueue int = 2
+const DefaultGetQueue int = 10
 
 // DefaultGetWorker sets the number of ReaderWorker instances to start by default.
 const DefaultGetWorker int = 1
+
+// DefaultFlushTimer is an integer constant representing the default time in milliseconds for flushing batched operations to MongoDB.
+const DefaultFlushTimer int64 = 1000
 
 // Compression constants
 
@@ -148,6 +151,10 @@ type MongoStorageConfig struct {
 
 	// InsBatch sets the number of Articles an InsertWorker will cache before inserting to batch into one process.
 	InsBatch int
+
+	// FlushTimer represent the default time in milliseconds for flushing batched operations to MongoDB.
+	FlushTimer int64
+
 } // end type MongoStorageConfig
 
 // MongoArticle represents an article stored in MongoDB.
