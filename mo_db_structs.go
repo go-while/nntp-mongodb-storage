@@ -1,56 +1,32 @@
 package mongostorage
 
-// CONSTANTS comments written by AI.
-
-// DefaultMongoURI is the default MongoDB connection string used when no URI is provided.
-const DefaultMongoURI string = "mongodb://localhost:27017"
-
-// DefaultMongoDatabaseName is the default name of the MongoDB database used when no database name is provided.
-const DefaultMongoDatabaseName string = "nntp"
-
-// DefaultMongoCollection is the default name of the MongoDB collection used when no collection name is provided.
-const DefaultMongoCollection string = "articles"
-
-// DefaultMongoTimeout is the default timeout value (in seconds) for connecting to MongoDB.
-const DefaultMongoTimeout int64 = 15
-
-// DefaultDelQueue sets the number of objects a DeleteWorker will queue before processing.
-const DefaultDelQueue int = 1
-
-// DefaultDelWorker sets the number of DeleteWorker instances to start by default.
-const DefaultDelWorker int = 1
-
-// DefaultDeleteBatchSize The number of Msgidhashes a DeleteWorker will cache before performing a batch delete operation in one process.
-const DefaultDeleteBatchSize int = 1
-
-// DefaultInsQueue sets the number of objects an InsertWorker will queue before processing.
-const DefaultInsQueue int = 1
-
-// DefaultInsWorker sets the number of InsertWorker instances to start by default.
-const DefaultInsWorker int = 1
-
-// DefaultInsertBatchSize The number of Articles an InsertWorker will cache before performing a batch insert operation in one process.
-const DefaultInsertBatchSize int = 1
-
-// DefaultGetQueue sets the total queue length for all ReaderWorker instances.
-const DefaultGetQueue int = 1
-
-// DefaultGetWorker sets the number of ReaderWorker instances to start by default.
-const DefaultGetWorker int = 1
-
-// DefaultFlushTimer is an integer constant representing the default time in milliseconds for flushing batched operations to MongoDB.
-const DefaultFlushTimer int64 = 1000
+const (
+    DefaultMongoURI string = "mongodb://localhost:27017"
+    DefaultMongoDatabaseName string = "nntp"
+    DefaultMongoCollection string = "articles"
+    DefaultMongoTimeout int64 = 15
+    DefaultDelQueue int = 1
+    DefaultDelWorker int = 1
+    DefaultDeleteBatchSize int = 1
+    DefaultInsQueue int = 1
+    DefaultInsWorker int = 1
+    DefaultInsertBatchSize int = 1
+    DefaultGetQueue int = 1
+    DefaultGetWorker int = 1
+    DefaultFlushTimer int64 = 1000
+)
 
 // Compression constants
+const (
+	// NOCOMP represents the value indicating no compression for articles.
+	NOCOMP int = 0
 
-// NOCOMP represents the value indicating no compression for articles.
-const NOCOMP int = 0
+	// GZIP_enc represents the value indicating GZIP compression for articles.
+	GZIP_enc int = 1
 
-// GZIP_enc represents the value indicating GZIP compression for articles.
-const GZIP_enc int = 1
-
-// ZLIB_enc represents the value indicating ZLIB compression for articles.
-const ZLIB_enc int = 2
+	// ZLIB_enc represents the value indicating ZLIB compression for articles.
+	ZLIB_enc int = 2
+)
 
 // Note: The default values provided above are recommended for most use cases.
 // However, these values can be adjusted according to your specific requirements.
