@@ -91,7 +91,7 @@ forever:
 				log.Printf("%s Pre-Ins Many msgidhashes=%d", who, len_arts)
 				did += len_arts
 				ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
-				if err := MongoInsertManyArticles(ctx, collection, articles); err != nil {
+				if err := InsertManyArticles(ctx, collection, articles); err != nil {
 					// connection error
 					go requeue_Articles(articles)
 					articles = []*MongoArticle{}
@@ -141,7 +141,7 @@ forever:
 		} // end select insert_queue
 	} // end for forever
 	if len(articles) > 0 {
-		if err := MongoInsertManyArticles(ctx, collection, articles); err != nil {
+		if err := InsertManyArticles(ctx, collection, articles); err != nil {
 			// connection error
 			go requeue_Articles(articles)
 			articles = []*MongoArticle{}
@@ -213,7 +213,7 @@ forever:
 		if do_delete {
 			log.Printf("%s Pre-Del Many msgidhashes=%d", who, len_hashs)
 			ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
-			MongoDeleteManyArticles(ctx, collection, msgidhashes) // TODO catch error !
+			DeleteManyArticles(ctx, collection, msgidhashes) // TODO catch error !
 			msgidhashes = []string{}
 			last_delete = utils.UnixTimeMilliSec()
 			did += len(msgidhashes)
@@ -266,7 +266,7 @@ forever:
 		} // end select delete_queue
 	} // end for forever
 	if len(msgidhashes) > 0 {
-		MongoDeleteManyArticles(ctx, collection, msgidhashes) // TODO: catch error !
+		DeleteManyArticles(ctx, collection, msgidhashes) // TODO: catch error !
 	}
 	DisConnectMongoDB(who, ctx, client)
 	updateWorkerStatus(wType, update{Did: did, Bad: bad})
