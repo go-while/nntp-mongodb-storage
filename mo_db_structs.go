@@ -166,9 +166,11 @@ type MongoReadReqReturn struct {
 // It contains the following fields:
 //   - Msgidhashes: A slice of messageIDHashes for which articles are requested.
 //   - RetChan: A channel to receive the fetched articles as []*MongoArticle.
+//   - STAT: Set to true to only CheckIfArticleExistsByMessageIDHash
 //     The fetched articles will be sent through this channel upon successful retrieval.
 type MongoReadRequest struct {
 	Msgidhashes []*string
+	STAT        bool
 	RetChan     chan []*MongoArticle
 } // end type MongoReadRequest struct
 
