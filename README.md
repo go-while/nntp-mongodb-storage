@@ -50,7 +50,7 @@ It listens on specific channels (`mongostorage.UpDn_*_Worker_chan`) to receive r
 
 ### Functionality
 
-- **Listening for Up/Down Requests**: `MongoWorker_UpDn_Scaler(cfg)` continuously listens on channels (e.g., `UpDn_Insert_Worker_chan`, `UpDn_Delete_Worker_chan`, etc.) to receive requests for scaling up or down specific types of worker goroutines.
+- **Listening for Up/Down Requests**: `MongoWorker_UpDn_Scaler(cfg)` continuously listens on channels (`UpDn_Reader_Worker_chan`, `UpDn_Delete_Worker_chan`, `UpDn_Insert_Worker_chan`) to receive requests for scaling up or down specific types of worker goroutines.
 
 - **Background Processing**: `MongoWorker_UpDn_Scaler(cfg)` is designed to run in the background continuously, processing up and down requests as they arrive. It remains active throughout the lifetime of the program, ensuring that the number of worker goroutines can be flexibly adjusted without interrupting the main program's flow.
 
