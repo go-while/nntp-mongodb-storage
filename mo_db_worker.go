@@ -320,6 +320,34 @@ forever:
 			// DEBUG time.Sleep(time.Second)
 			//log.Printf("%s process Mongo_Reader_queue", who)
 			did++
+			if readreq.STAT {
+				found := 0
+				var articles []*MongoArticle
+				for i, messageIDHash := range readreq.Msgidhashes {
+					ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
+					retbool, err := CheckIfArticleExistsByMessageIDHash(ctx, collection, messageIDHash)
+					if err != nil {
+						log.Printf("Error %s STAT err='%v'", who, err)
+						time.Sleep(time.Second)
+						reboot = true
+						Mongo_Reader_queue <- readreq // requeue
+						break forever
+					}
+					if retbool {
+						found++
+					}
+					articles[i] = &MongoArticle { MessageIDHash: messageIDHash, Found: retbool }
+				}
+				if readreq.RetChan != nil {
+					//log.Printf("passing response %d/%d STAT articles to readreq.RetChan", len_got_arts, len_request)
+					readreq.RetChan <- articles
+					// sender does not close the readreq.RetChan here so it can be reused for next read request
+				} else {
+					log.Printf("WARN %s got %d/%d STAT articles readreq.RetChan=nil", who, found,len(readreq.Msgidhashes))
+				}
+				continue forever
+			}
+
 			ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 			// Read articles for the given msgidhashes.
 			articles, err := RetrieveArticlesByMessageIDHashes(ctx, collection, readreq.Msgidhashes)
@@ -333,7 +361,7 @@ forever:
 			len_got_arts := len(articles)
 			if readreq.RetChan != nil {
 				//log.Printf("passing response %d/%d read articles to readreq.RetChan", len_got_arts, len_request)
-				readreq.RetChan <- articles // MongoReadReqReturn{ Articles: articles }
+				readreq.RetChan <- articles
 				// sender does not close the readreq.RetChan here so it can be reused for next read request
 			} else {
 				log.Printf("WARN %s got %d/%d read articles readreq.RetChan=nil", who, len_got_arts, len_request)
