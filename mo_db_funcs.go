@@ -183,16 +183,16 @@ func RetrieveArticleByMessageIDHash(ctx context.Context, collection *mongo.Colle
 	return &article, nil
 } // end func RetrieveArticleByMessageIDHash
 
-// ReadArticlesByMessageIDHashes is a function that retrieves articles from the MongoDB collection based on a list of MessageIDHashes.
+// RetrieveArticlesByMessageIDHashes is a function that retrieves articles from the MongoDB collection based on a list of MessageIDHashes.
 // function written by AI.
-func ReadArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Collection, msgidhashes []*string) ([]*MongoArticle, error) {
+func RetrieveArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Collection, msgidhashes []*string) ([]*MongoArticle, error) {
 	// Filter to find the articles with the given MessageIDHashes.
 	filter := bson.M{"_id": bson.M{"$in": msgidhashes}}
 
 	// Find the articles in the collection.
 	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
-		log.Printf("Error ReadArticlesByMessageIDHashes coll.Find err='%v'", err)
+		log.Printf("Error RetrieveArticlesByMessageIDHashes coll.Find err='%v'", err)
 		return nil, err
 	}
 	defer cursor.Close(ctx)
@@ -203,7 +203,7 @@ func ReadArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Collec
 	for cursor.Next(ctx) {
 		var article MongoArticle
 		if err := cursor.Decode(&article); err != nil {
-			log.Printf("Error ReadArticlesByMessageIDHashes cursor.Decode article err='%v'", err)
+			log.Printf("Error RetrieveArticlesByMessageIDHashes cursor.Decode article err='%v'", err)
 			return nil, err
 		}
 		article.Found = true
@@ -212,19 +212,19 @@ func ReadArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Collec
 	}
 	for _, hash := range msgidhashes {
 		if !isPStringInSlice(founds, hash) {
-			//log.Printf("ReadArticlesByMessageIDHashes notfound hash='%s'", *hash)
+			//log.Printf("RetrieveArticlesByMessageIDHashes notfound hash='%s'", *hash)
 			var article MongoArticle
 			article.MessageIDHash = hash
 			articles = append(articles, &article)
 		}
 	}
 	if err := cursor.Err(); err != nil {
-		log.Printf("Error ReadArticlesByMessageIDHashes cursor.Err='%v'", err)
+		log.Printf("Error RetrieveArticlesByMessageIDHashes cursor.Err='%v'", err)
 		return nil, err
 	}
 
 	return articles, nil
-} // end func ReadArticlesByMessageIDHashes
+} // end func RetrieveArticlesByMessageIDHashes
 
 // RetrieveHeadByMessageIDHash is a function that retrieves the "Head" data of an article based on its MessageIDHash.
 // function written by AI.
