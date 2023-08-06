@@ -128,57 +128,75 @@ func EncodeToGob(data []byte) ([]byte, error) {
 // CompressData is a function that takes an input byte slice 'input' and an integer 'algo' representing the compression algorithm.
 // It compresses the input data using the specified compression algorithm and returns the compressed data as a new byte slice.
 // function written by AI.
-func CompressData(input []byte, algo int) ([]byte, error) {
+func CompressData(input *[]byte, algo int) error {
+	var err error
 	switch algo {
 	case GZIP_enc:
 		var buf bytes.Buffer
 		zWriter, err := gzip.NewWriterLevel(&buf, 1)
 		if err != nil {
 			log.Printf("Error CompressData gzip err='%v'", err)
-			return nil, err
+			return err
 		}
-		zWriter.Write(input)
+		zWriter.Write(*input)
 		zWriter.Flush()
 		zWriter.Close()
-		return buf.Bytes(), nil
+		compressedData := buf.Bytes()
+		*input = nil
+		*input = compressedData
 	case ZLIB_enc:
 		var buf bytes.Buffer
 		zWriter, err := zlib.NewWriterLevel(&buf, 1)
 		if err != nil {
 			log.Printf("Error CompressData zlib err='%v'", err)
-			return nil, err
+			return err
 		}
-		zWriter.Write(input)
+		zWriter.Write(*input)
 		zWriter.Flush()
 		zWriter.Close()
-		return buf.Bytes(), nil
+		compressedData := buf.Bytes()
+		*input = nil
+		*input = compressedData
 	default:
-		return nil, fmt.Errorf("unsupported compression algorithm: %d", algo)
+		err = fmt.Errorf("unsupported compression algorithm: %d", algo)
 	}
+	return err
 } // end func CompressData
 
 // DecompressData is a function that takes an input byte slice 'input' and an integer 'algo' representing the compression algorithm.
 // It decompresses the input data using the specified compression algorithm and returns the decompressed data as a new byte slice.
 // function written by AI.
-func DecompressData(input []byte, algo int) ([]byte, error) {
+func DecompressData(input *[]byte, algo int) error {
+	var err error
 	switch algo {
 	case GZIP_enc:
-		zReader, err := gzip.NewReader(bytes.NewReader(input))
+		zReader, err := gzip.NewReader(bytes.NewReader(*input))
 		if err != nil {
-			return nil, err
+			return err
 		}
 		zReader.Close()
-		return ioutil.ReadAll(zReader)
+		decompressed, err := ioutil.ReadAll(zReader)
+		if err != nil {
+			return err
+		}
+		*input = nil
+		*input = decompressed
+		//return ioutil.ReadAll(zReader) // returns a hidden error as 2nd return value
 	case ZLIB_enc:
-		zReader, err := zlib.NewReader(bytes.NewReader(input))
+		zReader, err := zlib.NewReader(bytes.NewReader(*input))
 		if err != nil {
-			return nil, err
+			return err
 		}
 		zReader.Close()
-		return ioutil.ReadAll(zReader)
+		decompressed, err := ioutil.ReadAll(zReader)
+		if err != nil {
+			return err
+		}
+		*input = nil
+		*input = decompressed
+		//return ioutil.ReadAll(zReader) // returns a hidden error as 2nd return value
 	default:
-		return nil, fmt.Errorf("unsupported compression algorithm: %d", algo)
+		err = fmt.Errorf("unsupported compression algorithm: %d", algo)
 	}
+	return err
 } // end func DecompressData
-
-// EOF mongodb_storage.go : package mongostorage

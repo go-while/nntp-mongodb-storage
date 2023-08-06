@@ -315,20 +315,20 @@ It contains various fields to store information about the article.
 
 ```go
 type MongoArticle struct {
-	MessageIDHash string   `bson:"_id"`
-	MessageID     string   `bson:"msgid"`
-	Newsgroups    []string `bson:"newsgroups"`
-	Head          []byte   `bson:"head"`
-	Headsize      int      `bson:"hs"`
-	Body          []byte   `bson:"body"`
-	Bodysize      int      `bson:"bs"`
-	Enc           int      `bson:"enc"`
+	MessageIDHash *string   `bson:"_id"`
+	MessageID     *string   `bson:"msgid"`
+	Newsgroups    *[]string `bson:"newsgroups"`
+	Head          *[]byte   `bson:"head"`
+	Headsize      int       `bson:"hs"`
+	Body          *[]byte   `bson:"body"`
+	Bodysize      int       `bson:"bs"`
+	Enc           int       `bson:"enc"`
 	Found         bool
 } // end type MongoArticle struct
 ```
 The `MongoArticle` struct is a custom data type defined in the codebase, which represents an article to be stored in and retrieved from a MongoDB database.
 
-- MessageIDHash: The unique identifier (hash) for the article, represented as a string and mapped to the `_id` field in the MongoDB collection.
+- `MessageIDHash`: The unique identifier (hash) for the article, represented as a string and mapped to the `_id` field in the MongoDB collection.
 
 - `MessageID`: The Message-ID of the article, represented as a string and mapped to the `msgid` field in the MongoDB collection.
 

@@ -228,7 +228,7 @@ func RetrieveArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Co
 
 // RetrieveHeadByMessageIDHash is a function that retrieves the "Head" data of an article based on its MessageIDHash.
 // function written by AI.
-func RetrieveHeadByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash string) ([]byte, error) {
+func RetrieveHeadByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash string) (*[]byte, error) {
 	// Filter to find the article with the given "messageIDHash".
 	filter := bson.M{"_id": messageIDHash}
 
@@ -259,7 +259,7 @@ func RetrieveHeadByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 
 // RetrieveBodyByMessageIDHash is a function that retrieves the "Body" data of an article  based on its MessageIDHash.
 // function written by AI.
-func RetrieveBodyByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash string) ([]byte, error) {
+func RetrieveBodyByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash string) (*[]byte, error) {
 	// Filter to find the article with the given "messageIDHash".
 	filter := bson.M{"_id": messageIDHash}
 

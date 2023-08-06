@@ -1,19 +1,19 @@
 package mongostorage
 
 const (
-    DefaultMongoURI string = "mongodb://localhost:27017"
-    DefaultMongoDatabaseName string = "nntp"
-    DefaultMongoCollection string = "articles"
-    DefaultMongoTimeout int64 = 15
-    DefaultDelQueue int = 1
-    DefaultDelWorker int = 1
-    DefaultDeleteBatchSize int = 1
-    DefaultInsQueue int = 1
-    DefaultInsWorker int = 1
-    DefaultInsertBatchSize int = 1
-    DefaultGetQueue int = 1
-    DefaultGetWorker int = 1
-    DefaultFlushTimer int64 = 1000
+	DefaultMongoURI          string = "mongodb://localhost:27017"
+	DefaultMongoDatabaseName string = "nntp"
+	DefaultMongoCollection   string = "articles"
+	DefaultMongoTimeout      int64  = 15
+	DefaultDelQueue          int    = 1
+	DefaultDelWorker         int    = 1
+	DefaultDeleteBatchSize   int    = 1
+	DefaultInsQueue          int    = 1
+	DefaultInsWorker         int    = 1
+	DefaultInsertBatchSize   int    = 1
+	DefaultGetQueue          int    = 1
+	DefaultGetWorker         int    = 1
+	DefaultFlushTimer        int64  = 1000
 )
 
 // Compression constants
@@ -130,7 +130,6 @@ type MongoStorageConfig struct {
 
 	// FlushTimer represent the default time in milliseconds for flushing batched operations to MongoDB.
 	FlushTimer int64
-
 } // end type MongoStorageConfig
 
 // MongoArticle represents an article stored in MongoDB.
@@ -145,14 +144,14 @@ type MongoStorageConfig struct {
 // - Enc: An integer representing the encoding type of the article (mapped to the "enc" field in MongoDB).
 // - Found: A boolean indicating whether the article was found during retrieval (not mapped to MongoDB).
 type MongoArticle struct {
-	MessageIDHash *string  `bson:"_id"`
-	MessageID     *string  `bson:"msgid"`
-	Newsgroups    []string `bson:"newsgroups"`
-	Head          []byte   `bson:"head"`
-	Headsize      int      `bson:"hs"`
-	Body          []byte   `bson:"body"`
-	Bodysize      int      `bson:"bs"`
-	Enc           int      `bson:"enc"`
+	MessageIDHash *string   `bson:"_id"`
+	MessageID     *string   `bson:"msgid"`
+	Newsgroups    *[]string `bson:"newsgroups"`
+	Head          *[]byte   `bson:"head"`
+	Headsize      int       `bson:"hs"`
+	Body          *[]byte   `bson:"body"`
+	Bodysize      int       `bson:"bs"`
+	Enc           int       `bson:"enc"`
 	Found         bool
 } // end type MongoArticle struct
 
