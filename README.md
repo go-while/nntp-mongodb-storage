@@ -86,9 +86,9 @@ func main() {
 			MessageIDHash: &hash1,
 			MessageID:     &hash1,
 			Newsgroups:    []*string{"group1", "group2"},
-			Head:          []*byte("This is the head of article 1"),
+			Head:          *[]byte("This is the head of article 1"),
 			Headsize:      100,
-			Body:          []*byte("This is the body of article 1"),
+			Body:          *[]byte("This is the body of article 1"),
 			Bodysize:      200,
 			Enc:           0, // not compressed
 	}
@@ -103,9 +103,9 @@ func main() {
 			MessageIDHash: &hash1,
 			MessageID:     &hash1,
 			Newsgroups:    []*string{"group1", "group2"},
-			Head:          []*byte("This is the head of article 1"),
+			Head:          *[]byte("This is the head of article 1"),
 			Headsize:      100,
-			Body:          []*byte("This is the body of article 1"),
+			Body:          *[]byte("This is the body of article 1"),
 			Bodysize:      200,
 			Enc:           0, // not compressed
 		},
@@ -113,9 +113,9 @@ func main() {
 			MessageIDHash: &hash1,  // will generate a duplicate error
 			MessageID:     &hash1,
 			Newsgroups:    []*string{"group1", "group2"},
-			Head:          []*byte("This is the head of article 1"),
+			Head:          *[]byte("This is the head of article 1"),
 			Headsize:      100,
-			Body:          []*byte("This is the body of article 1"),
+			Body:          *[]byte("This is the body of article 1"),
 			Bodysize:      200,
 			Enc:           1, // indicator: compressed with GZIP (sender has to apply de/compression)
 		},
@@ -123,9 +123,9 @@ func main() {
 			MessageIDHash: &hash1,
 			MessageID:     &hash1,
 			Newsgroups:    []*string{"group3", "group4"},
-			Head:          []*byte("This is the head of article 2"),
+			Head:          *[]byte("This is the head of article 2"),
 			Headsize:      150,
-			Body:          []*byte("This is the body of article 2"),
+			Body:          *[]byte("This is the body of article 2"),
 			Bodysize:      300,
 			Enc:           2, // indicator: compressed with ZLIB (sender has to apply de/compression)
 		},
