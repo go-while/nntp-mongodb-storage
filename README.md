@@ -88,7 +88,7 @@ These constants define various settings used when no specific values are provide
 
 ## Default Database and Collection Names
 
-- `DefaultMongoDatabaseName`: The default name of the MongoDB database used when no database name is provided. It is set to "nntp" by default.
+- `DefaultMongoDatabaseName`: The default name of the MongoDB database used when no database name is provided. Default Value:"nntp" by default.
 
 - `DefaultMongoCollection`: The default name of the MongoDB collection used when no collection name is provided. The collection name is set to "articles" by default.
 
@@ -98,21 +98,25 @@ These constants define various settings used when no specific values are provide
 
 ## Default Worker and Queue Settings
 
-- `DefaultDelWorker`: The number of `DeleteWorker` instances to start by default. It is set to 1.
+- `DefaultDelWorker`: The number of `DeleteWorker` instances to start by default. Default = 1
 
-- `DefaultDelQueue`: The number of delete requests allowed to be queued. It is set to 2.
+- `DefaultDelQueue`: The number of delete requests allowed to be queued. Default = 1
 
-- `DefaultDeleteBatchsize`: The number of Msgidhashes a `DeleteWorker` will cache before deleting to batch into one process. It is set to 1.
+- `DefaultDeleteBatchsize`: The number of Msgidhashes a `DeleteWorker` will cache before deleting to batch into one process. Default = 1
 
-- `DefaultInsWorker`: The number of `InsertWorker` instances to start by default. It is set to 1.
+- `DefaultInsWorker`: The number of `InsertWorker` instances to start by default. Default = 1
 
-- `DefaultInsQueue`: The number of insert requests allowed to be queued. It is set to 2.
+- `DefaultInsQueue`: The number of insert requests allowed to be queued. Default = 1
 
-- `DefaultInsertBatchsize`: The number of articles an `InsertWorker` will cache before inserting to batch into one process. It is set to 1.
+- `DefaultInsertBatchsize`: The number of articles an `InsertWorker` will cache before inserting to batch into one process. Default = 1
 
-- `DefaultGetWorker`: The number of `ReaderWorker` instances to start by default. It is set to 1.
+- `DefaultGetWorker`: The number of `ReaderWorker` instances to start by default. Default = 1
 
-- `DefaultGetQueue`: The total queue length for all `ReaderWorker` instances. It is set to 2.
+- `DefaultGetQueue`: The total queue length for all `ReaderWorker` instances. Default = 1
+
+- `FlushTimer`: The time in milliseconds for flushing batched operations to MongoDB. Default = 1000
+
+- Setting `FlushTimer` too low may waste CPU cycles, and if you want instant processing, keep the Insert/DeleteBatchsizes as 1 (default).
 
 Please note that these default values can be adjusted according to your specific requirements and available system resources.
 
