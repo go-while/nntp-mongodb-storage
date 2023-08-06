@@ -44,6 +44,7 @@ var (
 	UpDn_Reader_Worker_chan  = make(chan bool, 1)
 	UpDn_Delete_Worker_chan  = make(chan bool, 1)
 	UpDn_Insert_Worker_chan  = make(chan bool, 1)
+	LOCK_UpDnScaler          = make(chan struct{}, 1)
 	// internal channels to notify workers to stop
 	stop_reader_worker_chan        = make(chan int, 1)
 	stop_delete_worker_chan        = make(chan int, 1)

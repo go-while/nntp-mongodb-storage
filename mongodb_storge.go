@@ -44,8 +44,7 @@ func Load_MongoDB(cfg *MongoStorageConfig) {
 	log.Printf("Load_MongoDB: Delete DelQueue=%d DelWorker=%d DelBatch=%d", cfg.DelQueue, cfg.DelWorker, cfg.DelBatch)
 	log.Printf("Load_MongoDB: Insert InsQueue=%d InsWorker=%d InsBatch=%d", cfg.InsQueue, cfg.InsWorker, cfg.InsBatch)
 
-	go workerStatus()
-	go mongoWorker_UpDn_Scaler(cfg)
+	go MongoWorker_UpDn_Scaler(cfg)
 	for i := 1; i <= cfg.GetWorker; i++ {
 		go mongoWorker_Reader(i, &READER, cfg)
 	}

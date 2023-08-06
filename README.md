@@ -42,6 +42,42 @@
 
 - This allows the MongoDB operations to be context-aware and respect the context's timeout and cancellation signals.
 
+# MongoWorker_UpDn_Scaler(cfg)
+
+The purpose of `MongoWorker_UpDn_Scaler(cfg)` is to provide a mechanism for dynamically adjusting the number of worker goroutines in response to changes in workload or other factors.
+
+It listens on specific channels (`mongostorage.UpDn_*_Worker_chan`) to receive requests (bool: [true|false] for starting or stopping specific types of worker goroutines.
+
+### Functionality
+
+- **Listening for Up/Down Requests**: `MongoWorker_UpDn_Scaler(cfg)` continuously listens on channels (e.g., `UpDn_Insert_Worker_chan`, `UpDn_Delete_Worker_chan`, etc.) to receive requests for scaling up or down specific types of worker goroutines.
+
+- **Background Processing**: `MongoWorker_UpDn_Scaler(cfg)` is designed to run in the background continuously, processing up and down requests as they arrive. It remains active throughout the lifetime of the program, ensuring that the number of worker goroutines can be flexibly adjusted without interrupting the main program's flow.
+
+- **Starting or Stopping Workers**: Based on the requests, the `MongoWorker_UpDn_Scaler(cfg)` function initiates the start or stop of the respective worker goroutines.
+
+## External Usage of `MongoWorker_UpDn_Scaler(cfg)`
+
+The `MongoWorker_UpDn_Scaler(cfg)` function plays a crucial role in dynamically managing the scaling of worker goroutines in the MongoDB storage package. It allows external components to control the number of worker goroutines based on up and down requests, thus optimizing resource usage and performance. Here's an explanation of how this function can be used externally:
+
+1. **Starting `MongoWorker_UpDn_Scaler(cfg)`**: The three `mongostroage.UpDn_*_Worker_chan` channels are already initialized upon importing the module, you can directly start `MongoWorker_UpDn_Scaler(cfg)` by calling the function and passing it a `MongoStorageConfig` object as an argument. This config object should contain the initial worker counts for each type of worker (e.g., `GetWorker`, `DelWorker`, `InsWorker`).
+
+```go
+	// launch to background
+	go mongostorage.MongoWorker_UpDn_Scaler(cfg)
+```
+
+2. **Control Worker Scaling**: After `MongoWorker_UpDn_Scaler(cfg)` is running in the background, you can control the scaling of worker goroutines by sending true or false signals to the respective worker channels.
+
+- To increase the number of worker goroutines of a specific type (e.g., reader, delete, or insert), send a true signal to the corresponding worker channel (e.g., `UpDn_Reader_Worker_chan`, `UpDn_Delete_Worker_chan`, or `UpDn_Insert_Worker_chan`).
+
+- To decrease the number of worker goroutines of a specific type, send a false signal to the respective worker channel.
+
+3. **Stopping All Workers**: If you want to stop all worker goroutines simultaneously, you can send a `true` signal to the `UpDn_StopAll_Worker_chan`. This will trigger the `MongoWorker_UpDn_Scaler(cfg)` to send false signals to all worker channels, effectively instructing all workers to stop gracefully.
+
+Overall, by using `MongoWorker_UpDn_Scaler(cfg)` and the pre-initialized worker channels, the external application can dynamically adjust the number of worker goroutines based on workload demands or other factors, enabling efficient utilization of resources and improved performance for MongoDB storage operations.
+
+
 # Extending Context Timeout
 - If you need to extend the timeout of the context for specific operations, you can use the ExtendContextTimeout function provided by the package.
 
@@ -392,6 +428,10 @@ mongoWorker_Reader is responsible for handling read requests to retrieve article
 - Once the articles are retrieved, the worker sends them back to the main program through the `RetChan` channel of the corresponding `MongoReadRequest` struct, enabling efficient and concurrent reading of articles from the database.
 
 
+
+### Note
+
+It is important to note that `MongoWorker_UpDn_Scaler(cfg)` is a critical component in the MongoDB storage package, as it enables efficient and dynamic scaling of worker goroutines to handle various types of operations effectively. By utilizing channels to receive scaling requests, the function establishes a smooth and responsive scaling mechanism that enhances the performance and efficiency of the MongoDB storage operations.
 
 # Contribution
 

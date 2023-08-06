@@ -127,9 +127,9 @@ func updn_Set(wType string, maxwid int, cfg *MongoStorageConfig) {
 	log.Printf("$$ updn_Set wType=%s oldval=%d maxwid=%d", wType, oldval, maxwid)
 } // end func updn_Set
 
-// mongoWorker_UpDn_Scaler runs in the background and listens on channels for up/down requests to start/stop workers.
+// MongoWorker_UpDn_Scaler runs in the background and listens on channels for up/down requests to start/stop workers.
 // Explanation:
-// mongoWorker_UpDn_Scaler is responsible for managing the scaling of worker goroutines based on up/down requests.
+// MongoWorker_UpDn_Scaler is responsible for managing the scaling of worker goroutines based on up/down requests.
 // It listens to UpDn_*_Worker_chan channels to receive requests for starting or stopping specific types of workers.
 // The function uses updn_Set to update the worker counts accordingly, which effectively starts or stops worker goroutines.
 // This mechanism allows the application to dynamically adjust the number of worker goroutines based on the workload
@@ -137,7 +137,17 @@ func updn_Set(wType string, maxwid int, cfg *MongoStorageConfig) {
 // Note: The function runs in the background and continues to process requests as they arrive.
 //
 // function not written by AI.
-func mongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital values
+func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital values
+	select {
+		case LOCK_UpDnScaler <-struct{}{}:
+		// pass, set a lock
+		default:
+			log.Print("Error: MongoWorker_UpDn_Scaler already running")
+			return
+	}
+	defer unlock_UpDn_Scaler()
+	go workerStatus()
+	time.Sleep(time.Second/10)
 	// load initial values into channels
 	stop_reader_worker_chan <- cfg.GetWorker
 	stop_delete_worker_chan <- cfg.DelWorker
@@ -276,7 +286,11 @@ func mongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 	}(cfg.InsWorker, "insert")
 	time.Sleep(time.Second / 1000)
 
-} // end func mongoWorker_UpDn_Scaler
+} // end func MongoWorker_UpDn_Scaler
+
+func unlock_UpDn_Scaler() {
+	<-LOCK_UpDnScaler
+}
 
 func updateWorkerStatus(wType *string, status update) {
 	//log.Printf("## updateWorkerStatus wType=%s status='%v'", *wType, status)
