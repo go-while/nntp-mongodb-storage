@@ -289,14 +289,14 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 # MongoReadRequest Struct
 ```go
 type MongoReadRequest struct {
-	Msgidhashes []string
+	Msgidhashes []*string
 	RetChan     chan []*MongoArticle
 } // end type MongoReadRequest struct
 ```
 
 #Explanation of the fields in the MongoReadRequest struct:
 
-- Msgidhashes: A slice of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection. This field allows the mongoWorker_Reader to know which articles to retrieve from the database.
+- []*Msgidhash: A slice of pointers to string, representing a list of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection. This field allows the mongoWorker_Reader to know which articles to retrieve from the database.
 
 - RetChan: A channel used to receive the fetched articles as []*MongoArticle. The fetched articles will be sent through this channel upon successful retrieval.
 
