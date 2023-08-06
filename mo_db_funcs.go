@@ -9,19 +9,19 @@ import (
 	"log"
 )
 
-// MongoInsertOneArticle is a function that inserts a single article into a MongoDB collection.
+// InsertOneArticle is a function that inserts a single article into a MongoDB collection.
 // function written by AI.
-func MongoInsertOneArticle(ctx context.Context, collection *mongo.Collection, article *MongoArticle) error {
+func InsertOneArticle(ctx context.Context, collection *mongo.Collection, article *MongoArticle) error {
 	_, err := collection.InsertOne(ctx, article)
 	if err != nil {
 		log.Printf("Error collection.InsertOne err='%v'", err)
 	}
 	return err
-} // end func MongoInsertOneArticle
+} // end func InsertOneArticle
 
-// MongoInsertManyArticles is a function that performs a bulk insert of multiple articles into a MongoDB collection.
+// InsertManyArticles is a function that performs a bulk insert of multiple articles into a MongoDB collection.
 // function written by AI.
-func MongoInsertManyArticles(ctx context.Context, collection *mongo.Collection, articles []*MongoArticle) error {
+func InsertManyArticles(ctx context.Context, collection *mongo.Collection, articles []*MongoArticle) error {
 	insert_articles := []interface{}{}
 	for _, article := range articles {
 		insert_articles = append(insert_articles, article)
@@ -35,14 +35,14 @@ func MongoInsertManyArticles(ctx context.Context, collection *mongo.Collection, 
 	opts := options.InsertMany().SetOrdered(false)
 	result, err := collection.InsertMany(ctx, insert_articles, opts)
 	if err != nil {
-		//log.Printf("Got an Error MongoInsertManyArticles err='%v' inserted=%d", err, len(result.InsertedIDs))
+		//log.Printf("Got an Error InsertManyArticles err='%v' inserted=%d", err, len(result.InsertedIDs))
 
 		if retbool := IsDup(err); retbool {
-			log.Printf("Info MongoInsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
+			log.Printf("Info InsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
 			// all insert errors are duplicates
 			return nil
 		} else {
-			log.Printf("Warn MongoInsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
+			log.Printf("Warn InsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
 		}
 		/*
 			if writeErrors, ok := err.(mongo.writeErrors); ok {
@@ -54,23 +54,23 @@ func MongoInsertManyArticles(ctx context.Context, collection *mongo.Collection, 
 						continue
 					} else {
 						// Handle other write errors, if needed.
-						log.Printf("Error MongoInsertManyArticles Other insert error code=%d", writeError.Code)
+						log.Printf("Error InsertManyArticles Other insert error code=%d", writeError.Code)
 						continue
 					}
 				}
 			} else {
 				// Handle general connection or other error.
-				log.Printf("Error MongoInsertManyArticles err='%v'", err)
+				log.Printf("Error InsertManyArticles err='%v'", err)
 				return err
 			}
 		*/
 		return err
 	} else // end result InsertMany err != nil
 	if len(result.InsertedIDs) == len(articles) {
-		log.Printf("MongoInsertManyArticles: inserted=%d/%d", len(result.InsertedIDs), len(articles))
+		log.Printf("InsertManyArticles: inserted=%d/%d", len(result.InsertedIDs), len(articles))
 	}
 	return nil
-} // end func MongoInsertManyArticles
+} // end func InsertManyArticles
 
 // IsDuplicateKeyError returns true if err is a duplicate key error
 func IsDup(err error) bool {
@@ -118,9 +118,9 @@ func IsDup(err error) (bool, int) {
 } // end func IsDup
 */
 
-// MongoDeleteManyArticles is responsible for deleting multiple articles from the MongoDB collection based on a given set of MessageIDHashes.
+// DeleteManyArticles is responsible for deleting multiple articles from the MongoDB collection based on a given set of MessageIDHashes.
 // function written by AI.
-func MongoDeleteManyArticles(ctx context.Context, collection *mongo.Collection, msgidhashes []string) bool {
+func DeleteManyArticles(ctx context.Context, collection *mongo.Collection, msgidhashes []string) bool {
 	// Build the filter for DeleteMany
 	filter := bson.M{
 		"_id": bson.M{
@@ -131,13 +131,13 @@ func MongoDeleteManyArticles(ctx context.Context, collection *mongo.Collection, 
 	// Perform the DeleteMany operation
 	result, err := collection.DeleteMany(ctx, filter)
 	if err != nil {
-		log.Printf("Error MongoDeleteManyArticles err='%v'", err)
+		log.Printf("Error DeleteManyArticles err='%v'", err)
 		return false
 	}
 
 	log.Printf("MongoDB Deleted many=%d", result.DeletedCount)
 	return result.DeletedCount == int64(len(msgidhashes))
-} // end func MongoDeleteManyArticles
+} // end func DeleteManyArticles
 
 // DeleteArticlesByMessageIDHash deletes an article from the MongoDB collection by its MessageIDHash.
 // function written by AI.
