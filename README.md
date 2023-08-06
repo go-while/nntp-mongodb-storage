@@ -10,13 +10,13 @@
 
 # Key Functions: mongostorage.Func(...)
 
-- MongoInsertOneArticle: Inserts a single article into the MongoDB collection.
+- InsertOneArticle: Inserts a single article into the MongoDB collection.
 
-- MongoInsertManyArticles: Performs a bulk insert of multiple articles into the MongoDB collection.
+- InsertManyArticles: Performs a bulk insert of multiple articles into the MongoDB collection.
 
 - IsDup: Checks if an error is a duplicate key error in MongoDB.
 
-- MongoDeleteManyArticles: Deletes multiple articles from the MongoDB collection based on a list of MessageIDHashes.
+- DeleteManyArticles: Deletes multiple articles from the MongoDB collection based on a list of MessageIDHashes.
 
 - DeleteArticlesByMessageIDHash: Deletes an article from the MongoDB collection by its MessageIDHash.
 
@@ -85,7 +85,7 @@ func main() {
 	article := &mongostorage.MongoArticle{
 		// Populate your article data here
 	}
-	err = mongostorage.MongoInsertOneArticle(ctx, collection, article)
+	err = mongostorage.InsertOneArticle(ctx, collection, article)
 	if err != nil {
 		log.Printf("Error inserting article: %v", err)
 	}
@@ -125,7 +125,7 @@ func main() {
 		// Add more articles as needed
 	}
 
-	err = mongostorage.MongoInsertManyArticles(ctx, collection, articles)
+	err = mongostorage.InsertManyArticles(ctx, collection, articles)
 	if err != nil {
 		log.Printf("Error inserting articles: %v", err)
 	} else {
@@ -160,7 +160,7 @@ func main() {
 
 	// Example of deleting article(s).
 	msgidhashes := []string{"hash1", "hash2", "hash3"}
-	success := mongostorage.MongoDeleteManyArticles(ctx, collection, msgidhashes)
+	success := mongostorage.DeleteManyArticles(ctx, collection, msgidhashes)
 	if success {
 		log.Println("Articles deleted successfully.")
 	}
