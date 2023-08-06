@@ -1,8 +1,174 @@
-# nntp-mongodb-storage is a MongoDB Article Storage
+# nntp-mongodb-storage
 
-This repository contains a Go module for storing Usenet articles in MongoDB.
+## MongoDB Storage Package for Usenet Articles
 
-It provides functionality for inserting and deleting articles asynchronously using worker goroutines, as well as support for compression using gzip and zlib.
+- The mongostorage package offers a set of convenient functions for interacting with a MongoDB database and managing Usenet articles.
+
+- It provides efficient and reliable methods for inserting, deleting, and retrieving Usenet articles in a MongoDB collection.
+
+- With the mongostorage package, you can easily store, manage, and query Usenet articles in a MongoDB database, making it a valuable tool for any application that deals with Usenet data.
+
+# Key Functions: mongostorage.Func(...)
+
+- MongoInsertOneArticle: Inserts a single article into the MongoDB collection.
+
+- MongoInsertManyArticles: Performs a bulk insert of multiple articles into the MongoDB collection.
+
+- IsDup: Checks if an error is a duplicate key error in MongoDB.
+
+- MongoDeleteManyArticles: Deletes multiple articles from the MongoDB collection based on a list of MessageIDHashes.
+
+- DeleteArticlesByMessageIDHash: Deletes an article from the MongoDB collection by its MessageIDHash.
+
+- RetrieveArticleByMessageIDHash: Retrieves an article from the MongoDB collection by its MessageIDHash.
+
+- RetrieveArticlesByMessageIDHashes: Retrieves articles from the MongoDB collection based on a list of MessageIDHashes.
+
+- RetrieveHeadByMessageIDHash: Retrieves the "Head" data of an article based on its MessageIDHash.
+
+- RetrieveBodyByMessageIDHash: Retrieves the "Body" data of an article based on its MessageIDHash.
+
+- CheckIfArticleExistsByMessageIDHash: Checks if an article exists in the MongoDB collection based on its MessageIDHash.
+
+# Using External Context
+
+- The functions in the mongostorage package accept a `ctx context.Context` and mongo options, allowing you to provide your own MongoDB context from the main program.
+
+- In Go, the `context.Context` is used to manage the lifecycle of operations and carry deadlines, cancellation signals, and other request-scoped values across API boundaries.
+
+- It ensures the graceful termination of operations and handling of long-running tasks.
+
+- To use these functions with an external context, you can create your MongoDB client and collection in the main program and pass the `context.Context` to the functions.
+
+- This allows the MongoDB operations to be context-aware and respect the context's timeout and cancellation signals.
+
+# Extending Context Timeout
+- If you need to extend the timeout of the context for specific operations, you can use the ExtendContextTimeout function provided by the package.
+
+- Here's an example of how to use it:
+```go
+// Extending the context timeout for a specific operation
+newCtx, newCancel := mongostorage.ExtendContextTimeout(ctx, cancel, 20)
+// defer newCancel() <- defer is only needed if you dont call ExtendContextTimeout again. pass `cancel` to ExtendContextTimeout to cancel there.
+// Now use the newCtx for the MongoDB operation
+```
+
+- Here's an example of how you can use the mongostorage functions with an external context:
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"yourproject/mongostorage"
+)
+
+func main() {
+	// Create a MongoDB client with a timeout for connecting to the server
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://localhost:27017").SetConnectTimeout(5*time.Second))
+	if err != nil {
+		log.Fatalf("Error connecting to MongoDB: %v", err)
+	}
+	defer client.Disconnect(context.Background())
+
+	// Get a reference to the MongoDB collection
+	collection := client.Database("yourdbname").Collection("yourcollectionname")
+
+	// Create a context with a timeout and pass it to the functions in the mongostorage package
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Example of inserting a single article
+	article := &mongostorage.MongoArticle{
+		// Populate your article data here
+	}
+	err = mongostorage.MongoInsertOneArticle(ctx, collection, article)
+	if err != nil {
+		log.Printf("Error inserting article: %v", err)
+	}
+
+	// Example of inserting multiple articles in bulk
+	articles := []*mongostorage.MongoArticle{
+		{
+			MessageIDHash: strPtr("hash1"),
+			MessageID:     strPtr("msgid1"),
+			Newsgroups:    []string{"group1", "group2"},
+			Head:          []byte("This is the head of article 1"),
+			Headsize:      100,
+			Body:          []byte("This is the body of article 1"),
+			Bodysize:      200,
+			Enc:           0, // not compressed
+		},
+		{
+			MessageIDHash: strPtr("hash1"),
+			MessageID:     strPtr("msgid1"),
+			Newsgroups:    []string{"group1", "group2"},
+			Head:          []byte("This is the head of article 1"),
+			Headsize:      100,
+			Body:          []byte("This is the body of article 1"),
+			Bodysize:      200,
+			Enc:           1, // indicator: compressed with GZIP (sender has to apply de/compression)
+		},
+		{
+			MessageIDHash: strPtr("hash2"),
+			MessageID:     strPtr("msgid2"),
+			Newsgroups:    []string{"group3", "group4"},
+			Head:          []byte("This is the head of article 2"),
+			Headsize:      150,
+			Body:          []byte("This is the body of article 2"),
+			Bodysize:      300,
+			Enc:           2, // indicator: compressed with ZLIB (sender has to apply de/compression)
+		},
+		// Add more articles as needed
+	}
+
+	err = mongostorage.MongoInsertManyArticles(ctx, collection, articles)
+	if err != nil {
+		log.Printf("Error inserting articles: %v", err)
+	} else {
+		log.Println("Articles inserted successfully.")
+	}
+
+	// Example of retrieving an article
+	messageIDHash := "your-article-message-id-hash"
+	article, err := mongostorage.RetrieveArticleByMessageIDHash(ctx, collection, messageIDHash)
+	if err != nil {
+		log.Printf("Error retrieving article: %v", err)
+	} else if article != nil {
+		log.Println("Article found:", article)
+	} else {
+		log.Println("Article not found.")
+	}
+
+	// Example of retrieving multiple articles based on a list of MessageIDHashes
+	msgIDHashes := []*string{"hash1", "hash2", "hash3"}
+	articles, err := mongostorage.RetrieveArticleByMessageIDHashes(ctx, collection, msgIDHashes)
+	if err != nil {
+		log.Printf("Error retrieving articles: %v", err)
+	} else {
+		for _, article := range articles {
+			if article != nil {
+				log.Println("Article found:", article)
+			} else {
+				log.Println("Article not found.")
+			}
+		}
+	}
+
+	// Example of deleting article(s).
+	msgidhashes := []string{"hash1", "hash2", "hash3"}
+	success := mongostorage.MongoDeleteManyArticles(ctx, collection, msgidhashes)
+	if success {
+		log.Println("Articles deleted successfully.")
+	}
+
+}
+
+```
+
 
 ## Getting Started
 
