@@ -288,7 +288,7 @@ func RetrieveBodyByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 	return article.Body, nil
 } // end func retrieveBodyByMessageIDHash
 
-// RetrieveBodyByMessageIDHash is a function that retrieves the "Body" data of an article based on its MessageIDHash.
+// CheckIfArticleExistsByMessageIDHash checks if an article with the given MessageIDHash exists in the MongoDB collection.
 // function written by AI.
 func CheckIfArticleExistsByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash *string) (bool, error) {
 	// Filter to find the articles with the given MessageIDHash.
