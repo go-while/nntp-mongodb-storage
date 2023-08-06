@@ -304,10 +304,6 @@ type MongoReadRequest struct {
 
 - *MongoArticle: This is a pointer to a MongoArticle object. Instead of holding the actual MongoArticle value, it holds the memory address where the MongoArticle is stored. Using pointers allows for efficient memory usage when dealing with large datasets, as only the memory addresses are passed around, rather than duplicating the entire data.
 
-- *MongoArticle.Found: This is a boolean flag that indicates whether the requested article with the corresponding MessageIDHash was found in the MongoDB collection or not. When the mongoWorker_Reader retrieves an article, it sets this flag to 'true'. If the article is not found in the database, the flag is set to 'false'.
-
-
-
 
 # MongoArticle Struct
 The MongoArticle struct represents an article in the MongoDB collection.
