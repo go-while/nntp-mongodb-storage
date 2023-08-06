@@ -324,10 +324,10 @@ forever:
 			did++
 			ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 			// Read articles for the given msgidhashes.
-			articles, err := ReadArticlesByMessageIDHashes(ctx, collection, readreq.Msgidhashes)
+			articles, err := RetrieveArticlesByMessageIDHashes(ctx, collection, readreq.Msgidhashes)
 			if err != nil {
 				bad++
-				log.Printf("Error %s ReadArticlesByMessageIDHashes hashs=%d err='%v'", who, len(readreq.Msgidhashes), err)
+				log.Printf("Error %s RetrieveArticlesByMessageIDHashes hashs=%d err='%v'", who, len(readreq.Msgidhashes), err)
 				reboot = true
 				break forever
 			}
