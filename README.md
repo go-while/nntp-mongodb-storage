@@ -32,8 +32,6 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 
 - This function is typically called at the start of the program to set up the MongoDB configuration and prepare the worker goroutines.
 
-- By passing the cfg pointer to Load_MongoDB, the function can directly modify the configuration values in the provided MongoStorageConfig object.
-
 - After calling this function, the main program can use the following channels to enqueue articles for deletion, insertion, and read request:
 
 - The use of channels (Mongo_Insert_queue, Mongo_Delete_queue, and Mongo_Reader_queue) helps coordinate and distribute the workload among these worker functions, enabling concurrent operations on the MongoDB collections.
@@ -42,7 +40,7 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 - `Mongo_Insert_queue`: This channel is used to enqueue articles for insertion as `MongoArticle` instances, which will be processed by the insert worker goroutines.
 - `Mongo_Reader_queue`: This channel is used to enqueue read requests for articles, which will be processed by the reader worker goroutines.
 
-- The integer parameters DelWorker, InsWorker, and GetWorker determine the level of concurrency for article deletion, insertion, and read operations, respectively.
+- The integer parameters `DelWorker`, `InsWorker`, and `GetWorker` determine the level of concurrency for article deletion, insertion, and read operations, respectively.
 
 - The integer parameters `DelQueue`, `InsQueue`, and `GetQueue` control the length of the respective channels to manage buffering of requests before the send operation blocks.
 
@@ -87,9 +85,9 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 
 - `NOCOMP` (int): Represents the value indicating no compression for articles. Value: 0
 
-- `GZIP_enc` (int): Represents the value indicating GZIP compression for articles. Value: 1.
+- `GZIP_enc` (int): Represents the value indicating GZIP compression for articles. Value: 1
 
-- `ZLIB_enc` (int): Represents the value indicating ZLIB compression for articles. Value: 2.
+- `ZLIB_enc` (int): Represents the value indicating ZLIB compression for articles. Value: 2
 
 
 # MongoReadRequest Struct
@@ -169,7 +167,7 @@ mongoWorker_Insert is responsible for inserting articles into the specified Mong
 - This concurrent approach efficiently distributes the write workload across available resources, avoiding bottlenecks and ensuring efficient insertion of multiple articles simultaneously.
 - Before starting the insertion process, the worker initializes and establishes a connection to the MongoDB database using the provided URI and database name.
 - Upon receiving an article from the Mongo_Insert_queue, the worker performs a duplicate check based on the MessageIDHash to avoid inserting duplicates.
-- Optionally, before sending an article to the Mongo_Insert_queue for insertion, the sender can apply compression to the article's header and body based.
+- When using compression, it is advisable to set the Enc field of the Articles struct to the corresponding value (e.g., mongostorage.GZIP_enc or mongostorage.ZLIB_enc) so that it can be identified and decompressed correctly later during retrieval.
 - The worker then inserts the article into the MongoDB collection and logs relevant information such as raw size, compressed size (if applied), and the success or failure of the insertion.
 
 
