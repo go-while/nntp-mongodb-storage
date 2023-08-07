@@ -49,7 +49,7 @@ func mongoWorker_Insert(wid int, wType *string, cfg *MongoStorageConfig) {
 	defer updateWorkerStatus(wType, update{Stop: true})
 	reboot := false
 	who := fmt.Sprintf("mongoWorker_Insert#%d", wid)
-	logf(DEBUG, "++ Start %s", who)
+	log.Printf("++ Start %s", who)
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var client *mongo.Client
@@ -156,7 +156,7 @@ forever:
 	}
 	DisConnectMongoDB(&who, ctx, client)
 	updateWorkerStatus(wType, update{Did: did, Bad: bad})
-	logf(DEBUG, "xx End %s stop=%t reboot=%t", who, stop, reboot)
+	log.Printf("xx End %s stop=%t reboot=%t", who, stop, reboot)
 	if reboot {
 		go mongoWorker_Insert(wid, wType, cfg)
 	} else {
@@ -178,11 +178,11 @@ func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 		log.Printf("Error mongoWorker_Delete wid <= 0")
 		return
 	}
-	did, bad := 0, 0
+	did, bad, fetched := 0, 0, 0
 	updateWorkerStatus(wType, update{Boot: true})
 	defer updateWorkerStatus(wType, update{Stop: true})
 	who := fmt.Sprintf("mongoWorker_Delete#%d", wid)
-	logf(DEBUG, "++ Start %s", who)
+	log.Printf("++ Start %s", who)
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var client *mongo.Client
@@ -216,7 +216,7 @@ forever:
 			diff = utils.UnixTimeMilliSec() - last_delete
 			if len_hashs >= cfg.DelBatch {
 				do_delete = true
-			} else if is_timeout && len_hashs > 0 && diff > cfg.FlushTimer {
+			} else if is_timeout && len_hashs > 0 && diff >= cfg.FlushTimer {
 				do_delete = true
 			}
 			if is_timeout {
@@ -274,6 +274,7 @@ forever:
 				logf(DEBUG, "__ Quit %s", who)
 				break forever
 			}
+			fetched++
 			//DEBUGSLEEP()
 			//logf(DEBUG, "%s process Mongo_Delete_queue", who)  // spammy
 			if len(delreq.Msgidhashes) == 0 {
@@ -306,13 +307,13 @@ forever:
 				continue forever
 			}
 			timeout = newFlushTimer(cfg)
-			logf(DEBUG, "%s alive delrequests=%d delnoretchan=%d", who, len(delrequests), len(delnoretchan))
+			log.Printf("%s alive delrequests=%d delnoretchan=%d fetched=%d", who, len(delrequests), len(delnoretchan), fetched)
 			//break select_delete_queue
 		} // end select delete_queue
 	} // end for forever
 	DisConnectMongoDB(&who, ctx, client)
 	updateWorkerStatus(wType, update{Did: did, Bad: bad})
-	logf(DEBUG, "xx End %s stop=%t reboot=%t", who, stop, reboot)
+	log.Printf("xx End %s stop=%t reboot=%t", who, stop, reboot)
 	if reboot {
 		go mongoWorker_Delete(wid, wType, cfg)
 	} else {
@@ -337,7 +338,7 @@ func mongoWorker_Reader(wid int, wType *string, cfg *MongoStorageConfig) {
 	updateWorkerStatus(wType, update{Boot: true})
 	defer updateWorkerStatus(wType, update{Stop: true})
 	who := fmt.Sprintf("mongoWorker_Reader#%d", wid)
-	logf(DEBUG, "++ Start %s", who)
+	log.Printf("++ Start %s", who)
 	var ctx context.Context
 	var cancel context.CancelFunc
 	var client *mongo.Client
@@ -435,7 +436,7 @@ forever:
 	}
 	DisConnectMongoDB(&who, ctx, client)
 	updateWorkerStatus(wType, update{Did: did, Bad: bad})
-	logf(DEBUG, "xx End %s stop=%t reboot=%t", who, stop, reboot)
+	log.Printf("xx End %s stop=%t reboot=%t", who, stop, reboot)
 	if reboot {
 		go mongoWorker_Reader(wid, wType, cfg)
 	} else {
