@@ -12,7 +12,7 @@ import (
 func calculateExponentialBackoff(attempt int) time.Duration {
 	maxbackoff := time.Duration(15000)
 	backoffBase := 25 * time.Millisecond // Base backoff duration (adjust as needed)
-	backoffFactor := 2                    // Backoff factor (adjust as needed)
+	backoffFactor := 2                   // Backoff factor (adjust as needed)
 
 	// Calculate the backoff duration with exponential increase
 	backoffDuration := time.Duration(backoffFactor<<uint(attempt-1)) * backoffBase
@@ -29,6 +29,7 @@ func calculateExponentialBackoff(attempt int) time.Duration {
 // function not written by AI.
 // ./mongodbtest -randomUpDN -test-num 0
 func MongoWorker_UpDn_Random() {
+	DEBUG = true
 	isleep := 1
 	log.Print("Start mongostorage.MongoWorker_UpDn_Random")
 	for {
@@ -139,15 +140,15 @@ func updn_Set(wType string, maxwid int, cfg *MongoStorageConfig) {
 // function not written by AI.
 func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital values
 	select {
-		case LOCK_UpDnScaler <-struct{}{}:
-		// pass, set a lock
-		default:
-			log.Print("Error: MongoWorker_UpDn_Scaler already running")
-			return
+	case LOCK_UpDnScaler <- struct{}{}:
+	// pass, set a lock
+	default:
+		log.Print("Error: MongoWorker_UpDn_Scaler already running")
+		return
 	}
 	defer unlock_UpDn_Scaler()
 	go workerStatus()
-	time.Sleep(time.Second/10)
+	time.Sleep(time.Second / 10)
 	// load initial values into channels
 	stop_reader_worker_chan <- cfg.GetWorker
 	stop_delete_worker_chan <- cfg.DelWorker

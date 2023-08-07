@@ -287,4 +287,3 @@ func CheckIfArticleExistsByMessageIDHash(ctx context.Context, collection *mongo.
 } // end func CheckIfArticleExistsByMessageIDHash
 
 // EOF mo_db_funcs.go
-

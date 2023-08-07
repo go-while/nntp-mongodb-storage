@@ -385,14 +385,14 @@ forever:
 					if retbool {
 						found++
 					}
-					articles[i] = &MongoArticle { MessageIDHash: messageIDHash, Found: retbool }
+					articles[i] = &MongoArticle{MessageIDHash: messageIDHash, Found: retbool}
 				}
 				if getreq.RetChan != nil {
 					logf(DEBUG, "passing response %d/%d STAT articles to getreq.RetChan", len(articles), getreq.Msgidhashes)
 					getreq.RetChan <- articles
 					// sender does not close the getreq.RetChan here so it can be reused for next read request
 				} else {
-					logf(DEBUG, "WARN %s got %d/%d STAT articles getreq.RetChan=nil", who, found,len(getreq.Msgidhashes))
+					logf(DEBUG, "WARN %s got %d/%d STAT articles getreq.RetChan=nil", who, found, len(getreq.Msgidhashes))
 				}
 				continue forever
 			}

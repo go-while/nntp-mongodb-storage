@@ -21,15 +21,14 @@ import (
 )
 
 const (
-	CR string = "\r"
-	LF string = "\n"
-	CRLF string = CR+LF
+	CR   string = "\r"
+	LF   string = "\n"
+	CRLF string = CR + LF
 )
 
 var (
 	DEBUG bool = true
 )
-
 
 // Load_MongoDB initializes the MongoDB storage backend with the specified configuration parameters.
 // The function starts the worker goroutines in separate background routines.
@@ -211,7 +210,6 @@ func DecompressData(input *[]byte, algo int) error {
 	}
 	return err
 } // end func DecompressData
-
 
 func Strings2Byte(format string, input []string) (*[]byte, int) {
 	var output []byte
