@@ -378,17 +378,17 @@ type MongoArticle struct {
 ```
 The `MongoArticle` struct is a custom data type defined in the codebase, which represents an article to be stored in and retrieved from a MongoDB database.
 
-- `MessageIDHash`: The unique identifier (hash) for the article, represented as a string and mapped to the `_id` field in the MongoDB collection.
+- `MessageIDHash`: The unique identifier (hash) for the article, stored as a pointer to a string and mapped to the `_id` field in the MongoDB collection.
 
-- `MessageID`: The Message-ID of the article, represented as a string and mapped to the `msgid` field in the MongoDB collection.
+- `MessageID`: The Message-ID of the article, stored as a pointer to a string and mapped to the `msgid` field in the MongoDB collection.
 
-- `Newsgroups`: A slice of strings representing the newsgroups associated with the article. It is mapped to the `newsgroups` field in the MongoDB collection.
+- `Newsgroups`: This field is a slice of pointers to strings, representing the newsgroups linked to the article. It is mapped to the `newsgroups` field in the MongoDB collection.
 
-- `Head`: The header of the article, represented as a byte slice and mapped to the `head` field in the MongoDB collection.
+- `Head`: The header of the article, stored as a pointer to a byte slice and mapped to the `head` field in the MongoDB collection.
 
-- `Headsize`: The size of the article's header in bytes, represented as an integer and mapped to the `hs` field in the MongoDB collection.
+- `Headsize`: The size of the article's header in bytes as an integer and mapped to the `hs` field in the MongoDB collection.
 
-- `Body`: The body of the article, represented as a byte slice and mapped to the `body` field in the MongoDB collection.
+- `Body`: The body of the article, stored as a pointer to a byte slice and mapped to the `body` field in the MongoDB collection.
 
 - `Bodysize`: The size of the article's body in bytes, represented as an integer and mapped to the `bs` field in the MongoDB collection.
 
