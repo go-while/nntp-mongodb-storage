@@ -46,7 +46,7 @@
 
 The purpose of `MongoWorker_UpDn_Scaler(cfg)` is to provide a mechanism for dynamically adjusting the number of worker goroutines in response to changes in workload or other factors.
 
-It listens on specific channels (`mongostorage.UpDn_*_Worker_chan`) to receive requests (bool: [true|false] for starting or stopping specific types of worker goroutines.
+It listens on specific channels (`mongostorage.UpDn_*_Worker_chan`) to receive requests (bool: [`true`|`false`] for starting or stopping specific types of worker goroutines.
 
 ### Functionality
 
@@ -67,11 +67,11 @@ The `MongoWorker_UpDn_Scaler(cfg)` function plays a crucial role in dynamically 
 	go mongostorage.MongoWorker_UpDn_Scaler(cfg)
 ```
 
-2. **Control Worker Scaling**: After `MongoWorker_UpDn_Scaler(cfg)` is running in the background, you can control the scaling of worker goroutines by sending true or false signals to the respective worker channels.
+2. **Control Worker Scaling**: After `MongoWorker_UpDn_Scaler(cfg)` is running in the background, you can control the scaling of worker goroutines by sending `true` or `false` signals to the respective worker channels.
 
-- To increase the number of worker goroutines of a specific type (e.g., reader, delete, or insert), send a true signal to the corresponding worker channel (e.g., `UpDn_Reader_Worker_chan`, `UpDn_Delete_Worker_chan`, or `UpDn_Insert_Worker_chan`).
+- To increase the number of worker goroutines of a specific type (e.g., reader, delete, or insert), send a `true` signal to the corresponding worker channel (e.g., `UpDn_Reader_Worker_chan`, `UpDn_Delete_Worker_chan`, or `UpDn_Insert_Worker_chan`).
 
-- To decrease the number of worker goroutines of a specific type, send a false signal to the respective worker channel.
+- To decrease the number of worker goroutines of a specific type, send a `false` signal to the respective worker channel.
 
 3. **Stopping All Workers**: If you want to stop all worker goroutines simultaneously, you can send a `true` signal to the `UpDn_StopAll_Worker_chan`. This will trigger signals to all worker channels, effectively instructing all workers to stop gracefully.
 
@@ -318,7 +318,6 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 - `TestAfterInsert` (bool): A flag indicating whether to perform a test after an article insertion. The specific test details are not provided in the function, and the flag can be used for application-specific testing purposes.
 
 
-
 ## Compression Constants (Magic Numbers)
 
 - `NOCOMP` (int): Represents the value indicating no compression for articles. Value: 0
@@ -330,6 +329,11 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 
 # MongoGetRequest Struct
 ```go
+// MongoGetRequest represents a read request for fetching articles from MongoDB.
+// It contains the following fields:
+//   - Msgidhashes: A slice of messageIDHashes for which articles are requested.
+//   - RetChan: A channel to receive the fetched articles as []*MongoArticle.
+//   - STAT: Set to true to only CheckIfArticleExistsByMessageIDHash
 type MongoGetRequest struct {
 	Msgidhashes []*string
 	STAT        bool
@@ -337,7 +341,19 @@ type MongoGetRequest struct {
 } // end type MongoGetRequest struct
 ```
 
-#Explanation of the fields in the MongoGetRequest struct:
+# MongoDelRequest
+```go
+// MongoDelRequest represents a delete request for deleting articles from MongoDB.
+// It contains the following fields:
+// - Msgidhashes: A slice of messageIDHashes for which articles are requested to be deleted.
+// - RetChan: A channel to receive the count of deleted articles as int64.
+type MongoDelRequest struct {
+	Msgidhashes []*string
+	RetChan     chan int64
+} // end type MongoDelRequest struct
+```
+
+## Explanation of the fields in the Mongo[Get|Del]Request struct:
 
 - `[]*Msgidhash`: A slice of pointers to string, representing a list of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection. This field allows the `mongoWorker_Reader` to know which articles to retrieve from the database.
 
@@ -386,8 +402,7 @@ The `MongoArticle` struct is a custom data type defined in the codebase, which r
 
 - `Enc`: An integer representing the encoding type of the article, mapped to the `enc` field in the MongoDB collection.
 
-- `Found`: A boolean flag that is used to indicate whether the article was found during a retrieval operation. It is initially set to false and may be modified by the mongoWorker_Reader to indicate if an article was successfully retrieved.
-
+- `Found`: A boolean flag that is used to indicate whether the article was found during a retrieval operation. It is initially set to `false` and may be modified by the mongoWorker_Reader to indicate if an article was successfully retrieved.
 
 
 ## Workers

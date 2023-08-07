@@ -154,7 +154,6 @@ type MongoArticle struct {
 	Bodysize      int       `bson:"bs"`
 	Enc           int       `bson:"enc"`
 	Found         bool
-	Deleted       bool
 } // end type MongoArticle struct
 
 /*
@@ -171,7 +170,6 @@ type MongoReqReturn struct {
 //   - Msgidhashes: A slice of messageIDHashes for which articles are requested.
 //   - RetChan: A channel to receive the fetched articles as []*MongoArticle.
 //   - STAT: Set to true to only CheckIfArticleExistsByMessageIDHash
-//     The fetched articles will be sent through this channel upon successful retrieval.
 type MongoGetRequest struct {
 	Msgidhashes []*string
 	STAT        bool
@@ -181,8 +179,7 @@ type MongoGetRequest struct {
 // MongoDelRequest represents a delete request for deleting articles from MongoDB.
 // It contains the following fields:
 // - Msgidhashes: A slice of messageIDHashes for which articles are requested to be deleted.
-// - RetChan: A channel to receive the deleted articles as []*MongoArticle.
-// The deleted articles will be sent through this channel upon successful deletion.
+// - RetChan: A channel to receive the count of deleted articles as int64.
 type MongoDelRequest struct {
 	Msgidhashes []*string
 	RetChan     chan int64
