@@ -72,6 +72,7 @@ func mongoWorker_Insert(wid int, wType *string, cfg *MongoStorageConfig) {
 	var diff int64
 	var last_insert int64
 	stop := false
+	lastping := utils.UnixTimeSec()
 forever:
 	for {
 		do_insert := false
@@ -127,6 +128,14 @@ forever:
 				logf(DEBUG, "__ Quit %s", who)
 				break forever
 			}
+			if utils.UnixTimeSec()-lastping > 3 {
+				if err := client.Ping(ctx, nil); err != nil {
+					log.Printf("%s failed to ping MongoDB err='%v'", who, err)
+					Mongo_Insert_queue <- article // requeue
+					reboot = true
+					break forever
+				}
+			}
 			dequeued++
 			//DEBUGSLEEP()
 			//logf(DEBUG, "%s process Mongo_Insert_queue", who) // spammy
@@ -146,6 +155,7 @@ forever:
 				stop = true
 				continue forever
 			}
+			lastping = utils.UnixTimeSec()
 			timeout = newFlushTimer(cfg)
 			log.Printf("%s alive Mongo_Insert_queue=%d dequeued=%d articles=%d ", who, len(Mongo_Insert_queue), dequeued, len(articles))
 		} // end select insert_queue
@@ -213,6 +223,7 @@ func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 	var last_delete int64
 	reboot := false
 	stop := false
+	lastping := utils.UnixTimeSec()
 forever:
 	for {
 		len_hashs := len(delrequests) + len(delnoretchan)
@@ -266,6 +277,7 @@ forever:
 				delrequests = []*MongoDelRequest{}
 			}
 			last_delete = utils.UnixTimeMilliSec()
+			lastping = utils.UnixTimeSec()
 		} else {
 			//logf(DEBUG, "!do_delete len_hashs=%d is_timeout=%t last=%d", len_hashs, is_timeout, utils.UnixTimeSec() - last_insert)
 		}
@@ -282,6 +294,14 @@ forever:
 			if !ok {
 				logf(DEBUG, "__ Quit %s", who)
 				break forever
+			}
+			if utils.UnixTimeSec()-lastping > 3 {
+				if err := client.Ping(ctx, nil); err != nil {
+					log.Printf("%s failed to ping MongoDB err='%v'", who, err)
+					Mongo_Delete_queue <- delreq // requeue
+					reboot = true
+					break forever
+				}
 			}
 			dequeued++
 			//DEBUGSLEEP()
@@ -367,6 +387,7 @@ func mongoWorker_Reader(wid int, wType *string, cfg *MongoStorageConfig) {
 	timeout := time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
 	reboot := false
 	stop := false
+	lastping := utils.UnixTimeSec()
 	// Process incoming read requests forever.
 forever:
 	for {
@@ -379,6 +400,14 @@ forever:
 			if !ok {
 				logf(DEBUG, "__ Quit %s", who)
 				break forever
+			}
+			if utils.UnixTimeSec()-lastping > 3 {
+				if err := client.Ping(ctx, nil); err != nil {
+					log.Printf("%s failed to ping MongoDB err='%v'", who, err)
+					Mongo_Reader_queue <- getreq // requeue
+					reboot = true
+					break forever
+				}
 			}
 			//DEBUGSLEEP()
 			//logf(DEBUG, "%s process Mongo_Reader_queue", who) // spammy
@@ -421,6 +450,7 @@ forever:
 				reboot = true
 				break forever
 			}
+			lastping = utils.UnixTimeSec()
 			len_request := len(getreq.Msgidhashes)
 			len_got_arts := len(articles)
 			if getreq.RetChan != nil {
