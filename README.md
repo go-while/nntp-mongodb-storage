@@ -353,7 +353,7 @@ type MongoDelRequest struct {
 } // end type MongoDelRequest struct
 ```
 
-- `[]*Msgidhash`: A slice of pointers to string, representing a list of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection. This field allows the `mongoWorker_Reader` to know which articles to retrieve from the database.
+- `[]*Msgidhash`: A slice of pointers to string, representing a list of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection.
 
 - `[]*MongoArticle`: This is a slice of pointers to `MongoArticle` objects. It can hold multiple pointers to `MongoArticle` objects, allowing for the representation of multiple articles that are fetched from the database.
 
