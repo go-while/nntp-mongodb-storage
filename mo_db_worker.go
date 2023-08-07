@@ -429,7 +429,7 @@ forever:
 				break forever
 			}
 			timeout = newFlushTimer(cfg)
-			logf(DEBUG, "mongoWorker_Reader alive hashs=%d", len(msgidhashes))
+			logf(DEBUG, "%s alive", who)
 			//break reader_queue
 		} // end select
 	}
