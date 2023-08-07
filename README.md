@@ -353,17 +353,9 @@ type MongoDelRequest struct {
 } // end type MongoDelRequest struct
 ```
 
-## Explanation of the fields in the Mongo[Get|Del]Request struct:
-
 - `[]*Msgidhash`: A slice of pointers to string, representing a list of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection. This field allows the `mongoWorker_Reader` to know which articles to retrieve from the database.
 
-- `STAT` (bool): STAT is used to control the behavior of the read request. If `STAT` is set to `true`, it indicates that the request is for checking if the articles with the given MessageIDHashes exist in the MongoDB collection without actually retrieving their content. The CheckIfArticleExistsByMessageIDHash function will be called instead of retrieving the full articles.
-
-- `RetChan`: A channel used to receive the fetched articles as `[]*MongoArticle`. The fetched articles will be sent through this channel upon successful retrieval from the MongoDB collection.
-
 - `[]*MongoArticle`: This is a slice of pointers to `MongoArticle` objects. It can hold multiple pointers to `MongoArticle` objects, allowing for the representation of multiple articles that are fetched from the database.
-
-- `*MongoArticle`: This is a pointer to a `MongoArticle` object. Instead of holding the actual MongoArticle value, it holds the memory address where the MongoArticle is stored. Using pointers allows for efficient memory usage when dealing with large datasets, as only the memory addresses are passed around, rather than duplicating the entire data.
 
 
 # MongoArticle Struct
@@ -442,11 +434,6 @@ mongoWorker_Reader is responsible for handling read requests to retrieve article
 - Upon receiving a read request, the worker queries the MongoDB collection to retrieve the corresponding articles (in compressed form) based on the provided article hashes (`Msgidhashes`).
 - Once the articles are retrieved, the worker sends them back to the main program through the `RetChan` channel of the corresponding `MongoGetRequest` struct, enabling efficient and concurrent reading of articles from the database.
 
-
-
-### Note
-
-It is important to note that `MongoWorker_UpDn_Scaler(cfg)` is a critical component in the MongoDB storage package, as it enables efficient and dynamic scaling of worker goroutines to handle various types of operations effectively. By utilizing channels to receive scaling requests, the function establishes a smooth and responsive scaling mechanism that enhances the performance and efficiency of the MongoDB storage operations.
 
 # Contribution
 
