@@ -213,7 +213,7 @@ func RetrieveHeadByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 	filter := bson.M{"_id": *messageIDHash}
 
 	// Projection to select only the "Head" field.
-	projection := bson.M{"head": 1}
+	projection := bson.M{"head": true, "hs": true, "body": false, "bs": false}
 
 	// Find the article in the collection and select only the "Head" field.
 	result := collection.FindOne(ctx, filter, options.FindOne().SetProjection(projection))
@@ -244,7 +244,7 @@ func RetrieveBodyByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 	filter := bson.M{"_id": *messageIDHash}
 
 	// Projection to select only the "Body" field.
-	projection := bson.M{"body": 1}
+	projection := bson.M{"head": false, "hs": false, "body": true, "bs": true}
 
 	// Find the article in the collection and select only the "Body" field.
 	result := collection.FindOne(ctx, filter, options.FindOne().SetProjection(projection))
@@ -272,8 +272,11 @@ func RetrieveBodyByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 // function written by AI.
 func CheckIfArticleExistsByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash *string) (bool, error) {
 	// Filter to find the articles with the given MessageIDHash.
+
+	projection := bson.M{"body": false, "head": false}
+
 	filter := bson.M{"_id": messageIDHash}
-	result := collection.FindOne(ctx, filter, nil)
+	result := collection.FindOne(ctx, filter, options.FindOne().SetProjection(projection))
 	if result.Err() != nil {
 		// Check if the error is due to "no documents in result".
 		if result.Err() == mongo.ErrNoDocuments {
