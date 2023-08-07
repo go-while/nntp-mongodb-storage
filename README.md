@@ -328,16 +328,16 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 - `ZLIB_enc` (int): Represents the value indicating ZLIB compression for articles. Value: 2
 
 
-# MongoReadRequest Struct
+# MongoGetRequest Struct
 ```go
-type MongoReadRequest struct {
+type MongoGetRequest struct {
 	Msgidhashes []*string
 	STAT        bool
 	RetChan     chan []*MongoArticle
-} // end type MongoReadRequest struct
+} // end type MongoGetRequest struct
 ```
 
-#Explanation of the fields in the MongoReadRequest struct:
+#Explanation of the fields in the MongoGetRequest struct:
 
 - `[]*Msgidhash`: A slice of pointers to string, representing a list of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection. This field allows the `mongoWorker_Reader` to know which articles to retrieve from the database.
 
@@ -423,9 +423,9 @@ mongoWorker_Reader is responsible for handling read requests to retrieve article
 
 - By launching multiple mongoWorker_Reader instances concurrently (controlled by GetWorker), articles can be retrieved in parallel, reducing read times.
 - Before starting the reading process, the worker initializes and establishes a connection to the MongoDB database.
-- The worker listens to the Mongo_Reader_queue for read requests, each represented as a `MongoReadRequest` struct containing article hashes (`Msgidhashes`) and a return channel (`RetChan`) for sending back the retrieved articles.
+- The worker listens to the Mongo_Reader_queue for read requests, each represented as a `MongoGetRequest` struct containing article hashes (`Msgidhashes`) and a return channel (`RetChan`) for sending back the retrieved articles.
 - Upon receiving a read request, the worker queries the MongoDB collection to retrieve the corresponding articles (in compressed form) based on the provided article hashes (`Msgidhashes`).
-- Once the articles are retrieved, the worker sends them back to the main program through the `RetChan` channel of the corresponding `MongoReadRequest` struct, enabling efficient and concurrent reading of articles from the database.
+- Once the articles are retrieved, the worker sends them back to the main program through the `RetChan` channel of the corresponding `MongoGetRequest` struct, enabling efficient and concurrent reading of articles from the database.
 
 
 

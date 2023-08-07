@@ -120,7 +120,7 @@ func IsDup(err error) (bool, int) {
 
 // DeleteManyArticles is responsible for deleting multiple articles from the MongoDB collection based on a given set of MessageIDHashes.
 // function written by AI.
-func DeleteManyArticles(ctx context.Context, collection *mongo.Collection, msgidhashes []*string) bool {
+func DeleteManyArticles(ctx context.Context, collection *mongo.Collection, msgidhashes []*string) (int64, error) {
 	// Build the filter for DeleteMany
 	filter := bson.M{
 		"_id": bson.M{
@@ -130,13 +130,13 @@ func DeleteManyArticles(ctx context.Context, collection *mongo.Collection, msgid
 
 	// Perform the DeleteMany operation
 	result, err := collection.DeleteMany(ctx, filter)
+	deleted := result.DeletedCount
 	if err != nil {
-		log.Printf("Error DeleteManyArticles err='%v'", err)
-		return false
+		log.Printf("Error DeleteManyArticles deleted=%d err='%v'", deleted, err)
+	} else if deleted > 0 {
+		logf(DEBUG, "DeleteManyArticles deleted=%d", deleted)
 	}
-
-	log.Printf("MongoDB Deleted many=%d", result.DeletedCount)
-	return result.DeletedCount == int64(len(msgidhashes))
+	return deleted, err
 } // end func DeleteManyArticles
 
 // DeleteArticlesByMessageIDHash deletes an article from the MongoDB collection by its MessageIDHash.
@@ -305,3 +305,6 @@ func CheckIfArticleExistsByMessageIDHash(ctx context.Context, collection *mongo.
 	// The document with the given MessageIDHash exists in the collection.
 	return true, nil
 } // end func CheckIfArticleExistsByMessageIDHash
+
+// EOF mo_db_funcs.go
+

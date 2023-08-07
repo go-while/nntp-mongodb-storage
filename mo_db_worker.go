@@ -26,7 +26,7 @@ func requeue_Articles(articles []*MongoArticle) {
 	log.Printf("Warn requeue_Articles: articles=%d", len(articles))
 
 	for _, article := range articles {
-		Mongo_Insert_queue <- *article
+		Mongo_Insert_queue <- article
 	}
 } // end func requeue_Articles
 
@@ -71,6 +71,7 @@ func mongoWorker_Insert(wid int, wType *string, cfg *MongoStorageConfig) {
 	is_timeout := false
 	var diff int64
 	var last_insert int64
+	stop := false
 forever:
 	for {
 		do_insert := false
@@ -88,7 +89,7 @@ forever:
 			}
 
 			if do_insert {
-				log.Printf("%s Pre-Ins Many msgidhashes=%d", who, len_arts)
+				logf(DEBUG, "%s Pre-Ins Many msgidhashes=%d", who, len_arts)
 				did += len_arts
 				ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 				if err := InsertManyArticles(ctx, collection, articles); err != nil {
@@ -112,6 +113,9 @@ forever:
 				articles = []*MongoArticle{}
 			}
 		}
+		if stop {
+			break forever
+		}
 	insert_queue:
 		select {
 		case article, ok := <-Mongo_Insert_queue:
@@ -119,9 +123,9 @@ forever:
 				log.Printf("__ Quit %s", who)
 				break forever
 			}
-			// DEBUG time.Sleep(time.Second)
+			//DEBUGSLEEP()
 			//log.Printf("%s process Mongo_Insert_queue", who)
-			articles = append(articles, &article)
+			articles = append(articles, article)
 			if len(articles) >= cfg.InsBatch {
 				break insert_queue
 			}
@@ -131,10 +135,11 @@ forever:
 				updateWorkerStatus(wType, update{Did: did, Bad: bad})
 				did, bad = 0, 0
 			}
-			maxID := iStop_Worker(*wType)
+			maxID := iStop_Worker(wType)
 			if wid > maxID {
 				log.Printf("-- Stopping %s", who)
-				break forever // stop Worker
+				stop = true
+				continue forever
 			}
 			timeout = newFlushTimer(cfg)
 			//log.Printf("mongoWorker_Insert alive hashs=%d", len(msgidhashes))
@@ -151,9 +156,14 @@ forever:
 	}
 	DisConnectMongoDB(who, ctx, client)
 	updateWorkerStatus(wType, update{Did: did, Bad: bad})
-	log.Printf("xx End %s reboot=%t", who, reboot)
+	log.Printf("xx End %s stop=%t reboot=%t", who, stop, reboot)
 	if reboot {
 		go mongoWorker_Insert(wid, wType, cfg)
+	} else {
+		queued := len(Mongo_Insert_queue)
+		if queued > 0 {
+			log.Printf("WARN Mongo_Insert_queue queued=%d", queued)
+		}
 	}
 } // end func mongoWorker_Insert
 
@@ -190,13 +200,16 @@ func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 		break
 	}
 	timeout := time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
-	msgidhashes := []*string{}
+	//msgidhashes := []*string{}
+	delrequests := []*MongoDelRequest{}
 	is_timeout := false
 	var diff int64
 	var last_delete int64
+	reboot := false
+	stop := false
 forever:
 	for {
-		len_hashs := len(msgidhashes)
+		len_hashs := len(delrequests)
 		do_delete := false
 		if len_hashs == cfg.DelBatch || is_timeout {
 			diff = utils.UnixTimeMilliSec() - last_delete
@@ -212,71 +225,79 @@ forever:
 
 		if do_delete {
 			log.Printf("%s Pre-Del Many msgidhashes=%d", who, len_hashs)
-			ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
-			DeleteManyArticles(ctx, collection, msgidhashes) // TODO catch error !
-			msgidhashes = []*string{}
+			for _, delreq := range delrequests {
+				ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
+				deleted, err := DeleteManyArticles(ctx, collection, delreq.Msgidhashes)
+				if err != nil {
+					bad++
+					// connection error
+					reboot = true
+				}
+				if delreq.RetChan != nil {
+					delreq.RetChan <- deleted
+				}
+				did++
+			}
+			delrequests = []*MongoDelRequest{}
+			//msgidhashes = []*string{}
 			last_delete = utils.UnixTimeMilliSec()
-			did += len(msgidhashes)
+			//did += len_hashs
 		} else {
 			//log.Printf("!do_delete len_hashs=%d is_timeout=%t last=%d", len_hashs, is_timeout, utils.UnixTimeSec() - last_insert)
 		}
+		if stop {
+			break forever
+		}
 	select_delete_queue:
 		select {
-		case msgidhash, ok := <-Mongo_Delete_queue:
+		case delreq, ok := <-Mongo_Delete_queue:
 			if !ok {
 				log.Printf("__ Quit %s", who)
 				break forever
 			}
-			did++
-			// DEBUG time.Sleep(time.Second)
-			//log.Printf("%s process Mongo_Delete_queue", who)
-			if cfg.DelBatch == 1 { // deletes articles one by one
-				log.Printf("%s Pre-Del One msgidhash='%s'", who, msgidhash)
-				ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
-				err := DeleteArticlesByMessageIDHash(ctx, collection, &msgidhash)
-				if err != nil {
-					log.Printf("Error deleting messageIDHash=%s err='%v'", msgidhash, err)
-					bad++
-					continue
-				}
-				log.Printf("%s Deleted messageIDHash=%s", who, msgidhash)
-			} else {
-				msgidhashes = append(msgidhashes, &msgidhash)
-				//log.Printf("Append Del Worker: msgidhash='%s' to msgidhashes=%d", msgidhash, len(msgidhashes))
+			//DEBUGSLEEP()
+			//logf(DEBUG, "%s process Mongo_Delete_queue", who)
+			if len(delreq.Msgidhashes) == 0 {
+				log.Printf("WARN Mongo_Delete_queue got empty request")
+				continue // the select
 			}
-			if len(msgidhashes) >= cfg.DelBatch {
+			delrequests = append(delrequests, delreq)
+			if len(delrequests) >= cfg.DelBatch {
 				break select_delete_queue
 			}
+
 		case <-timeout:
 			is_timeout = true
 			if did > 0 || bad > 0 {
 				updateWorkerStatus(wType, update{Did: did, Bad: bad})
 				did, bad = 0, 0
 			}
-			maxID := iStop_Worker(*wType)
+			maxID := iStop_Worker(wType)
 			if wid > maxID {
 				log.Printf("-- Stopping %s", who)
-				break forever // stop Worker
+				stop = true
+				continue forever
 			}
 			timeout = newFlushTimer(cfg)
-			//log.Printf("mongoWorker_Delete alive hashs=%d", len(msgidhashes))
+			//log.Printf("mongoWorker_Delete alive delrequests=%d", len(delrequests))
 			//break select_delete_queue
 		} // end select delete_queue
 	} // end for forever
-	if len(msgidhashes) > 0 {
-		DeleteManyArticles(ctx, collection, msgidhashes) // TODO: catch error !
-	}
 	DisConnectMongoDB(who, ctx, client)
 	updateWorkerStatus(wType, update{Did: did, Bad: bad})
-	log.Printf("xx End %s", who)
+	log.Printf("xx End %s stop=%t reboot=%t", who, stop, reboot)
+	if reboot {
+		go mongoWorker_Delete(wid, wType, cfg)
+	} else {
+		queued := len(Mongo_Delete_queue)
+		if queued > 0 {
+			log.Printf("WARN Mongo_Delete_queue queued=%d", queued)
+		}
+	}
 } // end func mongoWorker_Delete
 
-func newFlushTimer(cfg *MongoStorageConfig) <-chan time.Time {
-	return time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
-}
-
 // mongoWorker_Reader is a goroutine function responsible for processing incoming read requests from the 'Mongo_Reader_queue'.
-// It reads articles from a MongoDB collection based on the given MessageIDHashes provided in the 'readreq' parameter.
+// It reads articles from a MongoDB collection based on the given MessageIDHashes provided in the 'getreq' parameter.
 // The function continuously listens for read requests and processes them until the 'Mongo_Reader_queue' is closed.
 // Once the 'Mongo_Reader_queue' is closed, the function performs disconnection from the MongoDB server and terminates.
 // function partly written by AI.
@@ -308,29 +329,30 @@ func mongoWorker_Reader(wid int, wType *string, cfg *MongoStorageConfig) {
 	}
 	timeout := time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
 	reboot := false
+	stop := false
 	// Process incoming read requests forever.
 forever:
 	for {
 		select {
-		case readreq, ok := <-Mongo_Reader_queue:
+		case getreq, ok := <-Mongo_Reader_queue:
 			if !ok {
 				log.Printf("__ Quit %s", who)
 				break forever
 			}
-			// DEBUG time.Sleep(time.Second)
+			//DEBUGSLEEP()
 			//log.Printf("%s process Mongo_Reader_queue", who)
 			did++
-			if readreq.STAT {
+			if getreq.STAT {
 				found := 0
 				var articles []*MongoArticle
-				for i, messageIDHash := range readreq.Msgidhashes {
+				for i, messageIDHash := range getreq.Msgidhashes {
 					ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 					retbool, err := CheckIfArticleExistsByMessageIDHash(ctx, collection, messageIDHash)
 					if err != nil {
 						log.Printf("Error %s STAT err='%v'", who, err)
 						time.Sleep(time.Second)
 						reboot = true
-						Mongo_Reader_queue <- readreq // requeue
+						Mongo_Reader_queue <- getreq // requeue
 						break forever
 					}
 					if retbool {
@@ -338,33 +360,33 @@ forever:
 					}
 					articles[i] = &MongoArticle { MessageIDHash: messageIDHash, Found: retbool }
 				}
-				if readreq.RetChan != nil {
-					//log.Printf("passing response %d/%d STAT articles to readreq.RetChan", len_got_arts, len_request)
-					readreq.RetChan <- articles
-					// sender does not close the readreq.RetChan here so it can be reused for next read request
+				if getreq.RetChan != nil {
+					//log.Printf("passing response %d/%d STAT articles to getreq.RetChan", len_got_arts, len_request)
+					getreq.RetChan <- articles
+					// sender does not close the getreq.RetChan here so it can be reused for next read request
 				} else {
-					log.Printf("WARN %s got %d/%d STAT articles readreq.RetChan=nil", who, found,len(readreq.Msgidhashes))
+					log.Printf("WARN %s got %d/%d STAT articles getreq.RetChan=nil", who, found,len(getreq.Msgidhashes))
 				}
 				continue forever
 			}
 
 			ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 			// Read articles for the given msgidhashes.
-			articles, err := RetrieveArticlesByMessageIDHashes(ctx, collection, readreq.Msgidhashes)
+			articles, err := RetrieveArticlesByMessageIDHashes(ctx, collection, getreq.Msgidhashes)
 			if err != nil {
 				bad++
-				log.Printf("Error %s RetrieveArticlesByMessageIDHashes hashs=%d err='%v'", who, len(readreq.Msgidhashes), err)
+				log.Printf("Error %s RetrieveArticlesByMessageIDHashes hashs=%d err='%v'", who, len(getreq.Msgidhashes), err)
 				reboot = true
 				break forever
 			}
-			len_request := len(readreq.Msgidhashes)
+			len_request := len(getreq.Msgidhashes)
 			len_got_arts := len(articles)
-			if readreq.RetChan != nil {
-				//log.Printf("passing response %d/%d read articles to readreq.RetChan", len_got_arts, len_request)
-				readreq.RetChan <- articles
-				// sender does not close the readreq.RetChan here so it can be reused for next read request
+			if getreq.RetChan != nil {
+				//log.Printf("passing response %d/%d read articles to getreq.RetChan", len_got_arts, len_request)
+				getreq.RetChan <- articles
+				// sender does not close the getreq.RetChan here so it can be reused for next read request
 			} else {
-				log.Printf("WARN %s got %d/%d read articles readreq.RetChan=nil", who, len_got_arts, len_request)
+				log.Printf("WARN %s got %d/%d read articles getreq.RetChan=nil", who, len_got_arts, len_request)
 			}
 			// Do something with the articles, e.g., handle them or send them to another channel.
 		case <-timeout:
@@ -373,9 +395,10 @@ forever:
 				updateWorkerStatus(wType, update{Did: did, Bad: bad})
 				did, bad = 0, 0
 			}
-			maxID := iStop_Worker("reader")
+			maxID := iStop_Worker(wType)
 			if wid > maxID {
 				log.Printf("-- Stopping %s", who)
+				stop = true
 				break forever
 			}
 			timeout = newFlushTimer(cfg)
@@ -385,8 +408,19 @@ forever:
 	}
 	DisConnectMongoDB(who, ctx, client)
 	updateWorkerStatus(wType, update{Did: did, Bad: bad})
-	log.Printf("xx End %s", who)
+	log.Printf("xx End %s stop=%t reboot=%t", who, stop, reboot)
 	if reboot {
 		go mongoWorker_Reader(wid, wType, cfg)
+	} else {
+		queued := len(Mongo_Reader_queue)
+		if queued > 0 {
+			log.Printf("WARN Mongo_Reader_queue queued=%d", queued)
+		}
 	}
 } // end func mongoWorker_Reader
+
+func newFlushTimer(cfg *MongoStorageConfig) <-chan time.Time {
+	return time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
+}
+
+// EOF mo_db_worker.go

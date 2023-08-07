@@ -26,6 +26,10 @@ const (
 	CRLF string = CR+LF
 )
 
+var (
+	DEBUG bool = true
+)
+
 
 // Load_MongoDB initializes the MongoDB storage backend with the specified configuration parameters.
 // The function starts the worker goroutines in separate background routines.
@@ -35,11 +39,11 @@ func Load_MongoDB(cfg *MongoStorageConfig) {
 	// Load_MongoDB initializes the mongodb storage backend
 	SetDefaultsIfZero(cfg)
 
-	Counter.Init() // = COUNTER{m: make(map[string]uint64) }
+	Counter.Init()
 
-	Mongo_Delete_queue = make(chan string, cfg.DelQueue)
-	Mongo_Insert_queue = make(chan MongoArticle, cfg.InsQueue)
-	Mongo_Reader_queue = make(chan MongoReadRequest, cfg.GetQueue)
+	Mongo_Reader_queue = make(chan *MongoGetRequest, cfg.GetQueue)
+	Mongo_Delete_queue = make(chan *MongoDelRequest, cfg.DelQueue)
+	Mongo_Insert_queue = make(chan *MongoArticle, cfg.InsQueue)
 	log.Printf("Load_MongoDB: Reader GetQueue=%d GetWorker=%d", cfg.GetQueue, cfg.GetWorker)
 	log.Printf("Load_MongoDB: Delete DelQueue=%d DelWorker=%d DelBatch=%d", cfg.DelQueue, cfg.DelWorker, cfg.DelBatch)
 	log.Printf("Load_MongoDB: Insert InsQueue=%d InsWorker=%d InsBatch=%d", cfg.InsQueue, cfg.InsWorker, cfg.InsBatch)
@@ -222,3 +226,9 @@ func Strings2Byte(format string, input []string) (*[]byte, int) {
 	return &output, size
 } // end func Strings2Byte
 // EOF mongodbtest.go
+
+func logf(DEBUG bool, format string, a ...any) {
+	if DEBUG {
+		log.Printf(format, a...)
+	}
+} // end logf

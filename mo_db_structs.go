@@ -35,9 +35,9 @@ const (
 var (
 	Counter COUNTER
 	// _queue channels handle requests for read/get, delete and insert
-	Mongo_Reader_queue chan MongoReadRequest
-	Mongo_Delete_queue chan string
-	Mongo_Insert_queue chan MongoArticle
+	Mongo_Reader_queue chan *MongoGetRequest
+	Mongo_Delete_queue chan *MongoDelRequest
+	Mongo_Insert_queue chan *MongoArticle
 	// pass a bool [true|false] to the UpDN_ channels and workers will start or stop
 	// external access via: mongostorage.UpDn_***_Worker_chan
 	UpDn_StopAll_Worker_chan = make(chan bool, 1)
@@ -154,33 +154,38 @@ type MongoArticle struct {
 	Bodysize      int       `bson:"bs"`
 	Enc           int       `bson:"enc"`
 	Found         bool
+	Deleted       bool
 } // end type MongoArticle struct
 
-// MongoReadReqReturn represents the return value for a read request in MongoDB.
+/*
+// MongoReqReturn represents the return value for a read request in MongoDB.
 // It contains the following field:
 // - Articles: A slice of pointers to MongoArticle objects representing the fetched articles.
-type MongoReadReqReturn struct {
+type MongoReqReturn struct {
 	Articles []*MongoArticle
-} // end type MongoReadReqReturn struct
+} // end type MongoReqReturn struct
+*/
 
-// MongoReadRequest represents a read request for fetching articles from MongoDB.
+// MongoGetRequest represents a read request for fetching articles from MongoDB.
 // It contains the following fields:
 //   - Msgidhashes: A slice of messageIDHashes for which articles are requested.
 //   - RetChan: A channel to receive the fetched articles as []*MongoArticle.
 //   - STAT: Set to true to only CheckIfArticleExistsByMessageIDHash
 //     The fetched articles will be sent through this channel upon successful retrieval.
-type MongoReadRequest struct {
+type MongoGetRequest struct {
 	Msgidhashes []*string
 	STAT        bool
 	RetChan     chan []*MongoArticle
-} // end type MongoReadRequest struct
+} // end type MongoGetRequest struct
 
-// MongoDeleteRequest represents a delete request for deleting articles from MongoDB.
+// MongoDelRequest represents a delete request for deleting articles from MongoDB.
 // It contains the following fields:
 // - Msgidhashes: A slice of messageIDHashes for which articles are requested to be deleted.
 // - RetChan: A channel to receive the deleted articles as []*MongoArticle.
 // The deleted articles will be sent through this channel upon successful deletion.
-type MongoDeleteRequest struct {
-	Msgidhashes []string
-	RetChan     chan []*MongoArticle
-} // end type MongoDeleteRequest struct
+type MongoDelRequest struct {
+	Msgidhashes []*string
+	RetChan     chan int64
+} // end type MongoDelRequest struct
+
+// EOF mo_db_structs.go

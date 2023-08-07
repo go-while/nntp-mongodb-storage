@@ -100,3 +100,5 @@ func SetDefaultsIfZero(cfg *MongoStorageConfig) {
 		cfg.FlushTimer = 1000
 	}
 } // end func SetDefaultsIfZero
+
+// EOF mo_db_config.go

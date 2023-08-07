@@ -69,20 +69,20 @@ func MongoWorker_UpDn_Random() {
 // For each type, it reads the current maximum worker ID from the corresponding channel.
 // After retrieving the ID, it immediately writes it back to the channel, effectively "parking" the value again, so other parts of the code can still access the ID.
 // function not written by AI.
-func iStop_Worker(wType string) int {
+func iStop_Worker(wType *string) int {
 	var maxwid int
 	switch wType {
-	case "reader":
+	case &READER:
 		maxwid = <-stop_reader_worker_chan // read value
 		stop_reader_worker_chan <- maxwid  // park value again
-	case "delete":
+	case &DELETE:
 		maxwid = <-stop_delete_worker_chan // read value
 		stop_delete_worker_chan <- maxwid  // park value again
-	case "insert":
+	case &INSERT:
 		maxwid = <-stop_insert_worker_chan // read value
 		stop_insert_worker_chan <- maxwid  // park value again
 	default:
-		log.Printf("Error iStop_Worker unknown Wtype=%s", wType)
+		log.Printf("Error iStop_Worker unknown Wtype=%s", *wType)
 	} // end switch wType
 	return maxwid
 } // fund end iStop_Worker
@@ -342,3 +342,5 @@ func workerStatus() {
 		} // end select
 	} // end for
 } // end func WorkerStatus
+
+// EOF mo_db_status.go
