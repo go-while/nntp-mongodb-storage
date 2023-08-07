@@ -27,7 +27,7 @@ func InsertManyArticles(ctx context.Context, collection *mongo.Collection, artic
 		insert_articles = append(insert_articles, article)
 	}
 	/*
-			* Unordered Insert:
+		* Unordered Insert:
 		   *   If you set the ordered option to false, MongoDB will continue the insertMany operation even if a duplicate key is found.
 		   *   The operation will try to insert all the documents in the array, and duplicates will be ignored.
 		   *   The first occurrence of each unique _id will be inserted, and subsequent occurrences will be skipped.
@@ -44,26 +44,6 @@ func InsertManyArticles(ctx context.Context, collection *mongo.Collection, artic
 		} else {
 			logf(DEBUG, "Warn InsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
 		}
-		/*
-			if writeErrors, ok := err.(mongo.writeErrors); ok {
-				// Handle individual write errors for each document.
-				for _, writeError := range writeErrors {
-					if writeError.Code == 11000 { // Duplicate key error code
-						// Handle duplicate key error here.
-						logf(DEBUG, "Duplicate key error for document: Code=%d", writeError.Code)
-						continue
-					} else {
-						// Handle other write errors, if needed.
-						log.Printf("Error InsertManyArticles Other insert error code=%d", writeError.Code)
-						continue
-					}
-				}
-			} else {
-				// Handle general connection or other error.
-				log.Printf("Error InsertManyArticles err='%v'", err)
-				return err
-			}
-		*/
 		return err
 	} else // end result InsertMany err != nil
 	if len(result.InsertedIDs) == len(articles) {
