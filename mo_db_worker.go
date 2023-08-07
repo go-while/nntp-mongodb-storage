@@ -154,7 +154,7 @@ forever:
 		}
 		did += len(articles)
 	}
-	DisConnectMongoDB(who, ctx, client)
+	DisConnectMongoDB(&who, ctx, client)
 	updateWorkerStatus(wType, update{Did: did, Bad: bad})
 	logf(DEBUG, "xx End %s stop=%t reboot=%t", who, stop, reboot)
 	if reboot {
@@ -310,7 +310,7 @@ forever:
 			//break select_delete_queue
 		} // end select delete_queue
 	} // end for forever
-	DisConnectMongoDB(who, ctx, client)
+	DisConnectMongoDB(&who, ctx, client)
 	updateWorkerStatus(wType, update{Did: did, Bad: bad})
 	logf(DEBUG, "xx End %s stop=%t reboot=%t", who, stop, reboot)
 	if reboot {
@@ -433,7 +433,7 @@ forever:
 			//break reader_queue
 		} // end select
 	}
-	DisConnectMongoDB(who, ctx, client)
+	DisConnectMongoDB(&who, ctx, client)
 	updateWorkerStatus(wType, update{Did: did, Bad: bad})
 	logf(DEBUG, "xx End %s stop=%t reboot=%t", who, stop, reboot)
 	if reboot {
