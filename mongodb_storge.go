@@ -138,20 +138,22 @@ func EncodeToGob(data []byte) ([]byte, error) {
 // CompressData is a function that takes an input byte slice 'input' and an integer 'algo' representing the compression algorithm.
 // It compresses the input data using the specified compression algorithm and returns the compressed data as a new byte slice.
 // function written by AI.
-func CompressData(input *[]byte, algo int) error {
+func CompressData(input *[]byte, algo int) (error, int) {
 	var err error
+	var newsize int
 	switch algo {
 	case GZIP_enc:
 		var buf bytes.Buffer
 		zWriter, err := gzip.NewWriterLevel(&buf, 1)
 		if err != nil {
 			log.Printf("Error CompressData gzip err='%v'", err)
-			return err
+			return err, 0
 		}
 		zWriter.Write(*input)
 		zWriter.Flush()
 		zWriter.Close()
 		compressedData := buf.Bytes()
+		newsize = len(compressedData)
 		*input = nil
 		*input = compressedData
 	case ZLIB_enc:
@@ -159,18 +161,19 @@ func CompressData(input *[]byte, algo int) error {
 		zWriter, err := zlib.NewWriterLevel(&buf, 1)
 		if err != nil {
 			log.Printf("Error CompressData zlib err='%v'", err)
-			return err
+			return err, 0
 		}
 		zWriter.Write(*input)
 		zWriter.Flush()
 		zWriter.Close()
 		compressedData := buf.Bytes()
+		newsize = len(compressedData)
 		*input = nil
 		*input = compressedData
 	default:
 		err = fmt.Errorf("unsupported compression algorithm: %d", algo)
 	}
-	return err
+	return err, newsize
 } // end func CompressData
 
 // DecompressData is a function that takes an input byte slice 'input' and an integer 'algo' representing the compression algorithm.
