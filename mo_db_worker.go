@@ -124,7 +124,7 @@ forever:
 				break forever
 			}
 			//DEBUGSLEEP()
-			//logf(DEBUG, "%s process Mongo_Insert_queue", who)
+			//logf(DEBUG, "%s process Mongo_Insert_queue", who) // spammy
 			articles = append(articles, article)
 			if len(articles) >= cfg.InsBatch {
 				break insert_queue
@@ -275,7 +275,7 @@ forever:
 				break forever
 			}
 			//DEBUGSLEEP()
-			logf(DEBUG, "%s process Mongo_Delete_queue", who)
+			//logf(DEBUG, "%s process Mongo_Delete_queue", who)  // spammy
 			if len(delreq.Msgidhashes) == 0 {
 				logf(DEBUG, "WARN Mongo_Delete_queue got empty request")
 				continue // the select
@@ -306,7 +306,7 @@ forever:
 				continue forever
 			}
 			timeout = newFlushTimer(cfg)
-			//logf(DEBUG, "%s alive delrequests=%d delnoretchan=%d", who, len(delrequests), len(delnoretchan))
+			logf(DEBUG, "%s alive delrequests=%d delnoretchan=%d", who, len(delrequests), len(delnoretchan))
 			//break select_delete_queue
 		} // end select delete_queue
 	} // end for forever
@@ -367,7 +367,7 @@ forever:
 				break forever
 			}
 			//DEBUGSLEEP()
-			//logf(DEBUG, "%s process Mongo_Reader_queue", who)
+			//logf(DEBUG, "%s process Mongo_Reader_queue", who) // spammy
 			did++
 			if getreq.STAT {
 				found := 0
@@ -429,7 +429,7 @@ forever:
 				break forever
 			}
 			timeout = newFlushTimer(cfg)
-			//logf(DEBUG, "mongoWorker_Reader alive hashs=%d", len(msgidhashes))
+			logf(DEBUG, "mongoWorker_Reader alive hashs=%d", len(msgidhashes))
 			//break reader_queue
 		} // end select
 	}
