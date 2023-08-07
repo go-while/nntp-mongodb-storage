@@ -213,7 +213,7 @@ func RetrieveHeadByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 	filter := bson.M{"_id": *messageIDHash}
 
 	// Projection to select only the "Head" field.
-	projection := bson.M{"head": true, "hs": true, "body": false, "bs": false}
+	projection := bson.M{"head": true, "hs": true, "body": false, "bs": false, "enc": true}
 
 	// Find the article in the collection and select only the "Head" field.
 	result := collection.FindOne(ctx, filter, options.FindOne().SetProjection(projection))
@@ -244,7 +244,7 @@ func RetrieveBodyByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 	filter := bson.M{"_id": *messageIDHash}
 
 	// Projection to select only the "Body" field.
-	projection := bson.M{"head": false, "hs": false, "body": true, "bs": true}
+	projection := bson.M{"head": false, "hs": false, "body": true, "bs": true, "enc": true}
 
 	// Find the article in the collection and select only the "Body" field.
 	result := collection.FindOne(ctx, filter, options.FindOne().SetProjection(projection))
@@ -273,7 +273,8 @@ func RetrieveBodyByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 func CheckIfArticleExistsByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash *string) (bool, error) {
 	// Filter to find the articles with the given MessageIDHash.
 
-	projection := bson.M{"body": false, "head": false}
+	// This creates a projection document that specifies which fields should be included or excluded in the result.
+	projection := bson.M{"head": false, "hs": true, "body": false, "bs": true, "enc": true}
 
 	filter := bson.M{"_id": messageIDHash}
 	result := collection.FindOne(ctx, filter, options.FindOne().SetProjection(projection))
