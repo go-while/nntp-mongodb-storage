@@ -388,7 +388,7 @@ forever:
 					articles[i] = &MongoArticle { MessageIDHash: messageIDHash, Found: retbool }
 				}
 				if getreq.RetChan != nil {
-					//logf(DEBUG, "passing response %d/%d STAT articles to getreq.RetChan", len_got_arts, len_request)
+					logf(DEBUG, "passing response %d/%d STAT articles to getreq.RetChan", len(articles), getreq.Msgidhashes)
 					getreq.RetChan <- articles
 					// sender does not close the getreq.RetChan here so it can be reused for next read request
 				} else {
@@ -409,7 +409,7 @@ forever:
 			len_request := len(getreq.Msgidhashes)
 			len_got_arts := len(articles)
 			if getreq.RetChan != nil {
-				//logf(DEBUG, "passing response %d/%d read articles to getreq.RetChan", len_got_arts, len_request)
+				logf(DEBUG, "passing response %d/%d read articles to getreq.RetChan", len_got_arts, len_request)
 				getreq.RetChan <- articles
 				// sender does not close the getreq.RetChan here so it can be reused for next read request
 			} else {
