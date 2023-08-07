@@ -44,7 +44,7 @@ func mongoWorker_Insert(wid int, wType *string, cfg *MongoStorageConfig) {
 		log.Printf("Error mongoWorker_Insert wid <= 0")
 		return
 	}
-	did, bad := 0, 0
+	did, bad, dequeued := 0, 0, 0
 	updateWorkerStatus(wType, update{Boot: true})
 	defer updateWorkerStatus(wType, update{Stop: true})
 	reboot := false
@@ -113,6 +113,10 @@ forever:
 				articles = []*MongoArticle{}
 			}
 		}
+		if dequeued > 1000*1000 {
+			reboot = true
+			break forever
+		}
 		if stop {
 			break forever
 		}
@@ -123,6 +127,7 @@ forever:
 				logf(DEBUG, "__ Quit %s", who)
 				break forever
 			}
+			dequeued++
 			//DEBUGSLEEP()
 			//logf(DEBUG, "%s process Mongo_Insert_queue", who) // spammy
 			articles = append(articles, article)
@@ -142,7 +147,7 @@ forever:
 				continue forever
 			}
 			timeout = newFlushTimer(cfg)
-			//logf(DEBUG, "mongoWorker_Insert alive hashs=%d", len(msgidhashes))
+			log.Printf("%s alive Mongo_Insert_queue=%d dequeued=%d articles=%d ", who, len(Mongo_Insert_queue), dequeued, len(articles))
 		} // end select insert_queue
 	} // end for forever
 	if len(articles) > 0 {
@@ -178,7 +183,7 @@ func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 		log.Printf("Error mongoWorker_Delete wid <= 0")
 		return
 	}
-	did, bad, fetched := 0, 0, 0
+	did, bad, dequeued := 0, 0, 0
 	updateWorkerStatus(wType, update{Boot: true})
 	defer updateWorkerStatus(wType, update{Stop: true})
 	who := fmt.Sprintf("mongoWorker_Delete#%d", wid)
@@ -264,6 +269,10 @@ forever:
 		} else {
 			//logf(DEBUG, "!do_delete len_hashs=%d is_timeout=%t last=%d", len_hashs, is_timeout, utils.UnixTimeSec() - last_insert)
 		}
+		if dequeued > 1000*1000 {
+			reboot = true
+			break forever
+		}
 		if stop {
 			break forever
 		}
@@ -274,7 +283,7 @@ forever:
 				logf(DEBUG, "__ Quit %s", who)
 				break forever
 			}
-			fetched++
+			dequeued++
 			//DEBUGSLEEP()
 			//logf(DEBUG, "%s process Mongo_Delete_queue", who)  // spammy
 			if len(delreq.Msgidhashes) == 0 {
@@ -307,7 +316,7 @@ forever:
 				continue forever
 			}
 			timeout = newFlushTimer(cfg)
-			log.Printf("%s alive delrequests=%d delnoretchan=%d fetched=%d", who, len(delrequests), len(delnoretchan), fetched)
+			log.Printf("%s alive Mongo_Delete_queue=%d dequeued=%d delrequests=%d delnoretchan=%d", who, len(Mongo_Delete_queue), dequeued, len(delrequests), len(delnoretchan))
 			//break select_delete_queue
 		} // end select delete_queue
 	} // end for forever
@@ -334,7 +343,7 @@ func mongoWorker_Reader(wid int, wType *string, cfg *MongoStorageConfig) {
 		log.Printf("Error mongoWorker_Reader wid <= 0")
 		return
 	}
-	did, bad := 0, 0
+	did, bad, dequeued := 0, 0, 0
 	updateWorkerStatus(wType, update{Boot: true})
 	defer updateWorkerStatus(wType, update{Stop: true})
 	who := fmt.Sprintf("mongoWorker_Reader#%d", wid)
@@ -361,6 +370,10 @@ func mongoWorker_Reader(wid int, wType *string, cfg *MongoStorageConfig) {
 	// Process incoming read requests forever.
 forever:
 	for {
+		if dequeued > 1000*1000 {
+			reboot = true
+			break forever
+		}
 		select {
 		case getreq, ok := <-Mongo_Reader_queue:
 			if !ok {
@@ -370,6 +383,7 @@ forever:
 			//DEBUGSLEEP()
 			//logf(DEBUG, "%s process Mongo_Reader_queue", who) // spammy
 			did++
+			dequeued++
 			if getreq.STAT {
 				found := 0
 				var articles []*MongoArticle
@@ -431,6 +445,7 @@ forever:
 			}
 			timeout = newFlushTimer(cfg)
 			logf(DEBUG, "%s alive", who)
+			log.Printf("%s alive Mongo_Reader_queue=%d dequeued=%d", who, len(Mongo_Reader_queue), dequeued)
 			//break reader_queue
 		} // end select
 	}
