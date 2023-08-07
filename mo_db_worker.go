@@ -202,6 +202,7 @@ func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 	timeout := time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
 	//msgidhashes := []*string{}
 	delrequests := []*MongoDelRequest{}
+	delnoretchan := []*string{} // contains only (batched *messageidhash) if no return chan is set
 	is_timeout := false
 	var diff int64
 	var last_delete int64
@@ -209,7 +210,7 @@ func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 	stop := false
 forever:
 	for {
-		len_hashs := len(delrequests)
+		len_hashs := len(delrequests) + len(delnoretchan)
 		do_delete := false
 		if len_hashs == cfg.DelBatch || is_timeout {
 			diff = utils.UnixTimeMilliSec() - last_delete
@@ -224,24 +225,42 @@ forever:
 		} // check if do_delete
 
 		if do_delete {
-			log.Printf("%s Pre-Del Many msgidhashes=%d", who, len_hashs)
-			for _, delreq := range delrequests {
+			log.Printf("%s Pre-Del Many len_hashs=%d delrequests=%d delnoretchan=%d cfg.DelBatch=%d", who, len_hashs, len(delrequests), len(delnoretchan), cfg.DelBatch)
+
+			// process requests without RetChan first
+			if len(delnoretchan) > 0 {
 				ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
-				deleted, err := DeleteManyArticles(ctx, collection, delreq.Msgidhashes)
+				//log.Print("::before DeleteManyArticles")
+				_, err := DeleteManyArticles(ctx, collection, delnoretchan)
+				//log.Print("::after DeleteManyArticles")
 				if err != nil {
 					bad++
 					// connection error
 					reboot = true
 				}
-				if delreq.RetChan != nil {
-					delreq.RetChan <- deleted
-				}
-				did++
+				did += len(delnoretchan)
+				delnoretchan = []*string{}
 			}
-			delrequests = []*MongoDelRequest{}
-			//msgidhashes = []*string{}
+
+			// process requests with RetChan
+			if len(delrequests) > 0 {
+				for _, delreq := range delrequests {
+					ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
+					deleted, err := DeleteManyArticles(ctx, collection, delreq.Msgidhashes)
+					if err != nil {
+						bad++
+						// connection error
+						reboot = true
+					}
+					if delreq.RetChan != nil {
+						log.Printf("return delete response to delreq.RetChan")
+						delreq.RetChan <- deleted
+					}
+					did++
+				}
+				delrequests = []*MongoDelRequest{}
+			}
 			last_delete = utils.UnixTimeMilliSec()
-			//did += len_hashs
 		} else {
 			//log.Printf("!do_delete len_hashs=%d is_timeout=%t last=%d", len_hashs, is_timeout, utils.UnixTimeSec() - last_insert)
 		}
@@ -256,16 +275,24 @@ forever:
 				break forever
 			}
 			//DEBUGSLEEP()
-			//logf(DEBUG, "%s process Mongo_Delete_queue", who)
+			logf(DEBUG, "%s process Mongo_Delete_queue", who)
 			if len(delreq.Msgidhashes) == 0 {
 				log.Printf("WARN Mongo_Delete_queue got empty request")
 				continue // the select
 			}
-			delrequests = append(delrequests, delreq)
-			if len(delrequests) >= cfg.DelBatch {
+			if delreq.RetChan == nil { // requests without return merge into delnoretchan
+				for _, msgidhash := range delreq.Msgidhashes {
+					delnoretchan = append(delnoretchan, msgidhash)
+				}
+			} else {
+				delrequests = append(delrequests, delreq)
+				if len(delrequests) >= cfg.DelBatch {
+					break select_delete_queue
+				}
+			}
+			if len(delrequests)+len(delnoretchan) >= cfg.DelBatch {
 				break select_delete_queue
 			}
-
 		case <-timeout:
 			is_timeout = true
 			if did > 0 || bad > 0 {
@@ -279,7 +306,7 @@ forever:
 				continue forever
 			}
 			timeout = newFlushTimer(cfg)
-			//log.Printf("mongoWorker_Delete alive delrequests=%d", len(delrequests))
+			//log.Printf("%s alive delrequests=%d delnoretchan=%d", who, len(delrequests), len(delnoretchan))
 			//break select_delete_queue
 		} // end select delete_queue
 	} // end for forever
