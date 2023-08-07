@@ -127,14 +127,14 @@ func DeleteManyArticles(ctx context.Context, collection *mongo.Collection, msgid
 			"$in": msgidhashes,
 		},
 	}
-
+	//log.Printf("DeleteManyArticles filter=%d", len(filter["_id"]))
 	// Perform the DeleteMany operation
 	result, err := collection.DeleteMany(ctx, filter)
 	deleted := result.DeletedCount
 	if err != nil {
 		log.Printf("Error DeleteManyArticles deleted=%d err='%v'", deleted, err)
 	} else if deleted > 0 {
-		logf(DEBUG, "DeleteManyArticles deleted=%d", deleted)
+		//logf(DEBUG, "DeleteManyArticles deleted=%d", deleted)
 	}
 	return deleted, err
 } // end func DeleteManyArticles
