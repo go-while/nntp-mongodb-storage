@@ -61,7 +61,7 @@ func mongoWorker_Insert(wid int, wType *string, cfg *MongoStorageConfig) {
 		if err != nil {
 			attempts++
 			log.Printf("Error %s ConnectMongoDB err='%v'", who, err)
-			time.Sleep(time.Second * calculateExponentialBackoff(attempts))
+			time.Sleep(1000*time.Millisecond + calculateExponentialBackoff(attempts))
 			continue
 		}
 		break
@@ -194,7 +194,7 @@ func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 		if err != nil {
 			attempts++
 			log.Printf("Error %s ConnectMongoDB err='%v'", who, err)
-			time.Sleep(time.Second * calculateExponentialBackoff(attempts))
+			time.Sleep(1000*time.Millisecond + calculateExponentialBackoff(attempts))
 			continue
 		}
 		break
@@ -349,7 +349,7 @@ func mongoWorker_Reader(wid int, wType *string, cfg *MongoStorageConfig) {
 		if err != nil {
 			attempts++
 			log.Printf("Error %s ConnectMongoDB err='%v'", who, err)
-			time.Sleep(time.Second * calculateExponentialBackoff(attempts))
+			time.Sleep(1000*time.Millisecond + calculateExponentialBackoff(attempts))
 			continue
 		}
 		break
