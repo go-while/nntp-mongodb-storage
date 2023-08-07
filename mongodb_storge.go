@@ -223,10 +223,11 @@ func Strings2Byte(format string, input []string) (*[]byte, int) {
 	size = len(output)
 	return &output, size
 } // end func Strings2Byte
-// EOF mongodbtest.go
 
 func logf(DEBUG bool, format string, a ...any) {
 	if DEBUG {
 		log.Printf(format, a...)
 	}
 } // end logf
+
+// EOF mongodb_storage.go
