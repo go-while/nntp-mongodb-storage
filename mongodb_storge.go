@@ -88,19 +88,19 @@ func ConnectMongoDB(who string, cfg *MongoStorageConfig) (context.Context, conte
 	// Access the MongoDB collection.
 	collection := client.Database(cfg.MongoDatabaseName).Collection(cfg.MongoCollection)
 
-	log.Printf("-> ConnectMongoDB who=%s", who)
+	logf(DEBUG, "-> ConnectMongoDB who=%s", who)
 	return ctx, cancel, client, collection, err
 } // end func ConnectMongoDB
 
 // DisConnectMongoDB is a function responsible for disconnecting from the MongoDB server.
 // function written by AI.
-func DisConnectMongoDB(who string, ctx context.Context, client *mongo.Client) error {
+func DisConnectMongoDB(who *string, ctx context.Context, client *mongo.Client) error {
 	err := client.Disconnect(ctx)
 	if err != nil {
-		log.Printf("MongoDB Error disconnecting from MongoDB: %v", err)
+		logf(DEBUG, "Error %s DisConnectMongoDB err='%v'", *who, err)
 		return err
 	}
-	log.Printf("<- DisConnectMongoDB who=%s", who)
+	logf(DEBUG, "%s <- DisConnectMongoDB", *who)
 	return nil
 } // end func DisConnectMongoDB
 
