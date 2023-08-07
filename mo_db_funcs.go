@@ -35,14 +35,14 @@ func InsertManyArticles(ctx context.Context, collection *mongo.Collection, artic
 	opts := options.InsertMany().SetOrdered(false)
 	result, err := collection.InsertMany(ctx, insert_articles, opts)
 	if err != nil {
-		//log.Printf("Got an Error InsertManyArticles err='%v' inserted=%d", err, len(result.InsertedIDs))
+		//logf(DEBUG, "Got an Error InsertManyArticles err='%v' inserted=%d", err, len(result.InsertedIDs))
 
 		if retbool := IsDup(err); retbool {
-			log.Printf("Info InsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
+			logf(DEBUG, "Info InsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
 			// all insert errors are duplicates
 			return nil
 		} else {
-			log.Printf("Warn InsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
+			logf(DEBUG, "Warn InsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
 		}
 		/*
 			if writeErrors, ok := err.(mongo.writeErrors); ok {
@@ -50,7 +50,7 @@ func InsertManyArticles(ctx context.Context, collection *mongo.Collection, artic
 				for _, writeError := range writeErrors {
 					if writeError.Code == 11000 { // Duplicate key error code
 						// Handle duplicate key error here.
-						log.Printf("Duplicate key error for document: Code=%d", writeError.Code)
+						logf(DEBUG, "Duplicate key error for document: Code=%d", writeError.Code)
 						continue
 					} else {
 						// Handle other write errors, if needed.
@@ -67,7 +67,7 @@ func InsertManyArticles(ctx context.Context, collection *mongo.Collection, artic
 		return err
 	} else // end result InsertMany err != nil
 	if len(result.InsertedIDs) == len(articles) {
-		log.Printf("InsertManyArticles: inserted=%d/%d", len(result.InsertedIDs), len(articles))
+		logf(DEBUG, "InsertManyArticles: inserted=%d/%d", len(result.InsertedIDs), len(articles))
 	}
 	return nil
 } // end func InsertManyArticles
@@ -92,7 +92,7 @@ func IsDup(err error) bool {
 					e.HasErrorCodeWithMessage(16460, " E11000 ")
 			*/
 		} else {
-			log.Printf("Error, error is not mongo.WriteError")
+			logf(DEBUG, "Error, error is not mongo.WriteError")
 		}
 	}
 	return retbool
@@ -127,7 +127,7 @@ func DeleteManyArticles(ctx context.Context, collection *mongo.Collection, msgid
 			"$in": msgidhashes,
 		},
 	}
-	//log.Printf("DeleteManyArticles filter=%d", len(filter["_id"]))
+	//logf(DEBUG, "DeleteManyArticles filter=%d", len(filter["_id"]))
 	// Perform the DeleteMany operation
 	result, err := collection.DeleteMany(ctx, filter)
 	deleted := result.DeletedCount
@@ -166,7 +166,7 @@ func RetrieveArticleByMessageIDHash(ctx context.Context, collection *mongo.Colle
 	if result.Err() != nil {
 		// Check if the error is due to "no documents in result".
 		if result.Err() == mongo.ErrNoDocuments {
-			log.Printf("Info RetrieveArticleByMessageIDHash not found hash=%s", *messageIDHash)
+			logf(DEBUG, "Info RetrieveArticleByMessageIDHash not found hash=%s", *messageIDHash)
 			return nil, nil
 		}
 		// Return other errors as they indicate a problem with the query.
@@ -212,7 +212,7 @@ func RetrieveArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Co
 	}
 	for _, hash := range msgidhashes {
 		if !isPStringInSlice(founds, hash) {
-			//log.Printf("RetrieveArticlesByMessageIDHashes notfound hash='%s'", *hash)
+			//logf(DEBUG, "RetrieveArticlesByMessageIDHashes notfound hash='%s'", *hash)
 			var article MongoArticle
 			article.MessageIDHash = hash
 			articles = append(articles, &article)
