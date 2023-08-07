@@ -44,19 +44,19 @@ func MongoWorker_UpDn_Random() {
 		switch arandB {
 		case 0:
 			//wType = "reader"
-			log.Printf("~~ UpDN_Random sending %t to UpDn_Reader_Worker_chan", sendbool)
+			logf(DEBUG, "~~ UpDN_Random sending %t to UpDn_Reader_Worker_chan", sendbool)
 			UpDn_Reader_Worker_chan <- sendbool
 		case 1:
 			//wType = "delete"
-			log.Printf("~~ UpDN_Random sending %t to UpDn_Delete_Worker_chan", sendbool)
+			logf(DEBUG, "~~ UpDN_Random sending %t to UpDn_Delete_Worker_chan", sendbool)
 			UpDn_Delete_Worker_chan <- sendbool
 		case 2:
 			//wType = "insert"
-			log.Printf("~~ UpDN_Random sending %t to UpDn_Insert_Worker_chan", sendbool)
+			logf(DEBUG, "~~ UpDN_Random sending %t to UpDn_Insert_Worker_chan", sendbool)
 			UpDn_Insert_Worker_chan <- sendbool
 		case 3:
 			//wType = "StopAll"
-			log.Printf("~~ UpDN_Random sending %t to UpDn_StopAll_Worker_chan", sendbool)
+			logf(DEBUG, "~~ UpDN_Random sending %t to UpDn_StopAll_Worker_chan", sendbool)
 			UpDn_StopAll_Worker_chan <- sendbool
 		default:
 		}
@@ -124,7 +124,7 @@ func updn_Set(wType string, maxwid int, cfg *MongoStorageConfig) {
 			log.Printf("Error updn_Set unknown Wtype=%s", wType)
 		} // end switch wType
 	}
-	log.Printf("$$ updn_Set wType=%s oldval=%d maxwid=%d", wType, oldval, maxwid)
+	logf(DEBUG, "$$ updn_Set wType=%s oldval=%d maxwid=%d", wType, oldval, maxwid)
 } // end func updn_Set
 
 // MongoWorker_UpDn_Scaler runs in the background and listens on channels for up/down requests to start/stop workers.
@@ -168,7 +168,7 @@ func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 			select {
 			case <-timeout:
 				timeout = time.After(atimeout)
-				//log.Printf("UpDn_StopAll_Worker_chan alive")
+				//logf(DEBUG, "UpDn_StopAll_Worker_chan alive")
 
 			case retbool := <-UpDn_StopAll_Worker_chan:
 				switch retbool {
@@ -207,7 +207,7 @@ func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 			select {
 			case <-timeout:
 				timeout = time.After(atimeout)
-				//log.Printf("UpDn_Reader_Worker_chan alive")
+				//logf(DEBUG, "UpDn_Reader_Worker_chan alive")
 
 			case retbool := <-UpDn_Reader_Worker_chan:
 				switch retbool {
@@ -238,7 +238,7 @@ func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 			select {
 			case <-timeout:
 				timeout = time.After(atimeout)
-				//log.Printf("UpDn_Delete_Worker_chan alive")
+				//logf(DEBUG, "UpDn_Delete_Worker_chan alive")
 
 			case retbool := <-UpDn_Delete_Worker_chan:
 				switch retbool {
@@ -269,7 +269,7 @@ func MongoWorker_UpDn_Scaler(cfg *MongoStorageConfig) { // <-- needs load inital
 			select {
 			case <-timeout:
 				timeout = time.After(atimeout)
-				//log.Printf("UpDn_Insert_Worker_chan alive")
+				//logf(DEBUG, "UpDn_Insert_Worker_chan alive")
 
 			case retbool := <-UpDn_Insert_Worker_chan:
 				switch retbool {
@@ -293,7 +293,7 @@ func unlock_UpDn_Scaler() {
 }
 
 func updateWorkerStatus(wType *string, status update) {
-	//log.Printf("## updateWorkerStatus wType=%s status='%v'", *wType, status)
+	//logf(DEBUG, "## updateWorkerStatus wType=%s status='%v'", *wType, status)
 	worker_status_chan <- workerstatus{wType: *wType, status: status}
 }
 
@@ -310,7 +310,7 @@ func workerStatus() {
 		select {
 
 		case <-timeout:
-			//log.Printf("timer workerStatus SET")
+			//logf(DEBUG, "timer workerStatus SET")
 			Counter.Set("Did_mongoWorker_Reader", counter[READER]["did"])
 			Counter.Set("Did_mongoWorker_Delete", counter[DELETE]["did"])
 			Counter.Set("Did_mongoWorker_Insert", counter[INSERT]["did"])
