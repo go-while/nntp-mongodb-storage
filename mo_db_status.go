@@ -302,24 +302,28 @@ func workerStatus() {
 	// prevents workers from calling sync.Mutex
 	// workers send updates into worker_status_chan
 	counter := make(map[string]map[string]uint64)
-	counter["reader"] = make(map[string]uint64)
-	counter["delete"] = make(map[string]uint64)
-	counter["insert"] = make(map[string]uint64)
-	timeout := time.After(time.Millisecond * 2500)
+	counter[READER] = make(map[string]uint64)
+	counter[DELETE] = make(map[string]uint64)
+	counter[INSERT] = make(map[string]uint64)
+	timeout := time.After(time.Millisecond * 5000)
 	for {
 		select {
 
 		case <-timeout:
+			//log.Printf("timer workerStatus SET")
+			Counter.Set("Did_mongoWorker_Reader", counter[READER]["did"])
+			Counter.Set("Did_mongoWorker_Delete", counter[DELETE]["did"])
+			Counter.Set("Did_mongoWorker_Insert", counter[INSERT]["did"])
 
-			Counter.Set("Did_mongoWorker_Reader", counter["reader"]["did"])
-			Counter.Set("Did_mongoWorker_Delete", counter["delete"]["did"])
-			Counter.Set("Did_mongoWorker_Insert", counter["insert"]["did"])
+			Counter.Set("Bad_mongoWorker_Reader", counter[READER]["bad"])
+			Counter.Set("Bad_mongoWorker_Delete", counter[DELETE]["bad"])
+			Counter.Set("Bad_mongoWorker_Insert", counter[INSERT]["bad"])
 
-			Counter.Set("Running_mongoWorker_Reader", counter["reader"]["run"])
-			Counter.Set("Running_mongoWorker_Delete", counter["delete"]["run"])
-			Counter.Set("Running_mongoWorker_Insert", counter["insert"]["run"])
+			Counter.Set("Running_mongoWorker_Reader", counter[READER]["run"])
+			Counter.Set("Running_mongoWorker_Delete", counter[DELETE]["run"])
+			Counter.Set("Running_mongoWorker_Insert", counter[DELETE]["run"])
 
-			timeout = time.After(time.Millisecond * 1000)
+			timeout = time.After(time.Millisecond * 5000)
 
 		case nu := <-worker_status_chan:
 
