@@ -10,8 +10,8 @@ import (
 // It calculates the backoff duration to be used before the next retry based on exponential backoff with jitter.
 // function written by AI.
 func calculateExponentialBackoff(attempt int) time.Duration {
-	maxbackoff := time.Duration(30000)
-	backoffBase := 100 * time.Millisecond // Base backoff duration (adjust as needed)
+	maxbackoff := time.Duration(15000)
+	backoffBase := 25 * time.Millisecond // Base backoff duration (adjust as needed)
 	backoffFactor := 2                    // Backoff factor (adjust as needed)
 
 	// Calculate the backoff duration with exponential increase
