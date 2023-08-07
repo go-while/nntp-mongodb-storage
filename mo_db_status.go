@@ -29,8 +29,7 @@ func calculateExponentialBackoff(attempt int) time.Duration {
 // function not written by AI.
 // ./mongodbtest -randomUpDN -test-num 0
 func MongoWorker_UpDn_Random() {
-	DEBUG = true
-	isleep := 1
+	isleep := 2
 	log.Print("Start mongostorage.MongoWorker_UpDn_Random")
 	for {
 		arandA := rand.Intn(2)
@@ -45,20 +44,22 @@ func MongoWorker_UpDn_Random() {
 		switch arandB {
 		case 0:
 			//wType = "reader"
-			logf(DEBUG, "~~ UpDN_Random sending %t to UpDn_Reader_Worker_chan", sendbool)
+			log.Printf("~~ UpDN_Random sending %t to UpDn_Reader_Worker_chan", sendbool)
 			UpDn_Reader_Worker_chan <- sendbool
 		case 1:
 			//wType = "delete"
-			logf(DEBUG, "~~ UpDN_Random sending %t to UpDn_Delete_Worker_chan", sendbool)
+			log.Printf("~~ UpDN_Random sending %t to UpDn_Delete_Worker_chan", sendbool)
 			UpDn_Delete_Worker_chan <- sendbool
 		case 2:
 			//wType = "insert"
-			logf(DEBUG, "~~ UpDN_Random sending %t to UpDn_Insert_Worker_chan", sendbool)
+			log.Printf("~~ UpDN_Random sending %t to UpDn_Insert_Worker_chan", sendbool)
 			UpDn_Insert_Worker_chan <- sendbool
 		case 3:
 			//wType = "StopAll"
-			logf(DEBUG, "~~ UpDN_Random sending %t to UpDn_StopAll_Worker_chan", sendbool)
-			UpDn_StopAll_Worker_chan <- sendbool
+			if sendbool {
+				log.Printf("~~ UpDN_Random sending %t to UpDn_StopAll_Worker_chan", sendbool)
+				UpDn_StopAll_Worker_chan <- sendbool
+			}
 		default:
 		}
 	}
@@ -306,7 +307,7 @@ func workerStatus() {
 	counter[READER] = make(map[string]uint64)
 	counter[DELETE] = make(map[string]uint64)
 	counter[INSERT] = make(map[string]uint64)
-	timeout := time.After(time.Millisecond * 5000)
+	timeout := time.After(time.Millisecond * 1000)
 	for {
 		select {
 
@@ -322,12 +323,13 @@ func workerStatus() {
 
 			Counter.Set("Running_mongoWorker_Reader", counter[READER]["run"])
 			Counter.Set("Running_mongoWorker_Delete", counter[DELETE]["run"])
-			Counter.Set("Running_mongoWorker_Insert", counter[DELETE]["run"])
+			Counter.Set("Running_mongoWorker_Insert", counter[INSERT]["run"])
 
-			timeout = time.After(time.Millisecond * 5000)
+			log.Printf("counter r=%d/%d d=%d/%d i=%d/%d w=%d/%d/%d worker_status_chan=%d", counter[READER]["did"], counter[READER]["bad"], counter[DELETE]["did"], counter[DELETE]["bad"], counter[INSERT]["did"], counter[INSERT]["bad"], counter[READER]["run"], counter[DELETE]["run"], counter[INSERT]["run"], len(worker_status_chan))
+			timeout = time.After(time.Millisecond * 1000)
 
 		case nu := <-worker_status_chan:
-
+			log.Printf("worker_status_chan=%d", len(worker_status_chan))
 			if nu.status.Did > 0 {
 				counter[nu.wType]["did"] += uint64(nu.status.Did)
 			}
