@@ -122,6 +122,8 @@ func main() {
 	body1 := []byte("This is the body of article 1")
 	head2 := []byte("This is the head of article 2")
 	body2 := []byte("This is the body of article 2")
+	head3 := []byte("This is the head of article 3")
+	body3 := []byte("This is the body of article 3")
 
 	// Example of inserting a single article
 	article := &mongostorage.MongoArticle{
@@ -170,6 +172,16 @@ func main() {
 			Body:          &body2,
 			Bodysize:      len(body2),
 			Enc:           2, // indicator: compressed with ZLIB (sender has to apply de/compression)
+		},
+		{
+			MessageIDHash: &hash3,
+			MessageID:     &hash32,
+			Newsgroups:    []*string{"group3", "group4"},
+			Head:          &head3,
+			Headsize:      len(head3),
+			Body:          &body3,
+			Bodysize:      len(body3),
+			Enc:           3, // indicator: compressed with FLATE (sender has to apply de/compression)
 		},
 		// Add more articles as needed
 	}
