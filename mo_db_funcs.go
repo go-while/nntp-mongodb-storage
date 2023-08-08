@@ -38,11 +38,15 @@ func InsertManyArticles(ctx context.Context, collection *mongo.Collection, artic
 		//logf(DEBUG, "Got an Error InsertManyArticles err='%v' inserted=%d", err, len(result.InsertedIDs))
 
 		if retbool := IsDup(err); retbool {
-			logf(DEBUG, "Info InsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
+			if result != nil {
+				logf(DEBUG, "Info InsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
+			 }
 			// all insert errors are duplicates
 			return nil
 		} else {
-			logf(DEBUG, "Warn InsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
+			if result != nil {
+				logf(DEBUG, "Warn InsertManyArticles IsDup inserted=%d/%d", len(result.InsertedIDs), len(articles))
+			}
 		}
 		return err
 	} else // end result InsertMany err != nil
