@@ -2,6 +2,7 @@ package mongostorage
 
 import (
 	"bytes"
+	"compress/flate"
 	"compress/gzip"
 	"compress/zlib"
 	"context"
@@ -138,13 +139,20 @@ func EncodeToGob(data []byte) ([]byte, error) {
 // CompressData is a function that takes an input byte slice 'input' and an integer 'algo' representing the compression algorithm.
 // It compresses the input data using the specified compression algorithm and returns the compressed data as a new byte slice.
 // function written by AI.
-func CompressData(input *[]byte, algo int) (error, int) {
+func CompressData(input *[]byte, algo int , lvl int) (error, int) {
+	if lvl < 0 {
+		lvl = 0
+	}
+	if lvl > 9 {
+		lvl = 9
+	}
 	var err error
 	var newsize int
 	switch algo {
+
 	case GZIP_enc:
 		var buf bytes.Buffer
-		zWriter, err := gzip.NewWriterLevel(&buf, 1)
+		zWriter, err := gzip.NewWriterLevel(&buf, lvl)
 		if err != nil {
 			log.Printf("Error CompressData gzip err='%v'", err)
 			return err, 0
@@ -156,9 +164,10 @@ func CompressData(input *[]byte, algo int) (error, int) {
 		newsize = len(compressedData)
 		*input = nil
 		*input = compressedData
+
 	case ZLIB_enc:
 		var buf bytes.Buffer
-		zWriter, err := zlib.NewWriterLevel(&buf, 1)
+		zWriter, err := zlib.NewWriterLevel(&buf, lvl)
 		if err != nil {
 			log.Printf("Error CompressData zlib err='%v'", err)
 			return err, 0
@@ -170,6 +179,21 @@ func CompressData(input *[]byte, algo int) (error, int) {
 		newsize = len(compressedData)
 		*input = nil
 		*input = compressedData
+
+	case FLATE_enc:
+		var buf bytes.Buffer
+		flateWriter, err := flate.NewWriter(&buf, flate.DefaultCompression)
+		if err != nil {
+			log.Printf("Error CompressData flate err='%v'", err)
+			return err, 0
+		}
+		flateWriter.Write(*input)
+		flateWriter.Close()
+		compressedData := buf.Bytes()
+		newsize = len(compressedData)
+		*input = nil
+		*input = compressedData
+
 	default:
 		err = fmt.Errorf("unsupported compression algorithm: %d", algo)
 	}
@@ -182,6 +206,7 @@ func CompressData(input *[]byte, algo int) (error, int) {
 func DecompressData(input *[]byte, algo int) error {
 	var err error
 	switch algo {
+
 	case GZIP_enc:
 		zReader, err := gzip.NewReader(bytes.NewReader(*input))
 		if err != nil {
@@ -195,6 +220,7 @@ func DecompressData(input *[]byte, algo int) error {
 		*input = nil
 		*input = decompressed
 		//return ioutil.ReadAll(zReader) // returns a hidden error as 2nd return value
+
 	case ZLIB_enc:
 		zReader, err := zlib.NewReader(bytes.NewReader(*input))
 		if err != nil {
@@ -208,6 +234,16 @@ func DecompressData(input *[]byte, algo int) error {
 		*input = nil
 		*input = decompressed
 		//return ioutil.ReadAll(zReader) // returns a hidden error as 2nd return value
+
+	case FLATE_enc:
+		flateReader := flate.NewReader(bytes.NewReader(*input))
+		defer flateReader.Close() // Ensure the reader is closed after use
+		decompressed, err := ioutil.ReadAll(flateReader)
+		if err != nil {
+			return err
+		}
+		*input = nil
+		*input = decompressed
 	default:
 		err = fmt.Errorf("unsupported compression algorithm: %d", algo)
 	}

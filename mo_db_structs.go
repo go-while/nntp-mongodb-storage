@@ -18,14 +18,10 @@ const (
 
 // Compression constants
 const (
-	// NOCOMP represents the value indicating no compression for articles.
-	NOCOMP int = 0
-
-	// GZIP_enc represents the value indicating GZIP compression for articles.
-	GZIP_enc int = 1
-
-	// ZLIB_enc represents the value indicating ZLIB compression for articles.
-	ZLIB_enc int = 2
+	NOCOMP    int = 0
+	GZIP_enc  int = 1
+	ZLIB_enc  int = 2
+	FLATE_enc int = 3
 )
 
 // Note: The default values provided above are recommended for most use cases.
