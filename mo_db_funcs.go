@@ -102,13 +102,13 @@ func IsDup(err error) (bool, int) {
 } // end func IsDup
 */
 
-// DeleteManyArticles is responsible for deleting multiple articles from the MongoDB collection based on a given set of MessageIDHashes.
+// DeleteManyArticles is responsible for deleting multiple articles from the MongoDB collection based on a given set of MessageIDes.
 // function written by AI.
-func DeleteManyArticles(ctx context.Context, collection *mongo.Collection, msgidhashes []*string) (int64, error) {
+func DeleteManyArticles(ctx context.Context, collection *mongo.Collection, messageIDs []*string) (int64, error) {
 	// Build the filter for DeleteMany
 	filter := bson.M{
 		"_id": bson.M{
-			"$in": msgidhashes,
+			"$in": messageIDs,
 		},
 	}
 	//logf(DEBUG, "DeleteManyArticles filter=%d", len(filter["_id"]))
@@ -123,25 +123,25 @@ func DeleteManyArticles(ctx context.Context, collection *mongo.Collection, msgid
 	return deleted, err
 } // end func DeleteManyArticles
 
-// DeleteArticlesByMessageIDHash deletes an article from the MongoDB collection by its MessageIDHash.
+// DeleteArticlesByMessageID deletes an article from the MongoDB collection by its MessageID.
 // function written by AI.
-func DeleteArticlesByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash *string) error {
-	// Filter to find the articles with the given MessageIDHash.
-	filter := bson.M{"_id": *messageIDHash}
+func DeleteArticlesByMessageID(ctx context.Context, collection *mongo.Collection, messageID *string) error {
+	// Filter to find the articles with the given MessageID.
+	filter := bson.M{"_id": *messageID}
 
-	// Delete the articles with the given MessageIDHash.
+	// Delete the articles with the given MessageID.
 	_, err := collection.DeleteMany(ctx, filter)
 	if err != nil {
 		return err
 	}
 	return nil
-} // end func DeleteArticlesByMessageIDHash
+} // end func DeleteArticlesByMessageID
 
-// RetrieveArticleByMessageIDHash retrieves an article from the MongoDB collection by its MessageIDHash.
+// RetrieveArticleByMessageID retrieves an article from the MongoDB collection by its MessageID.
 // function written by AI.
-func RetrieveArticleByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash *string) (*MongoArticle, error) {
-	// Filter to find the article with the given MessageIDHash.
-	filter := bson.M{"_id": *messageIDHash}
+func RetrieveArticleByMessageID(ctx context.Context, collection *mongo.Collection, messageID *string) (*MongoArticle, error) {
+	// Filter to find the article with the given MessageID.
+	filter := bson.M{"_id": *messageID}
 
 	// Find the article in the collection.
 	result := collection.FindOne(ctx, filter)
@@ -150,7 +150,7 @@ func RetrieveArticleByMessageIDHash(ctx context.Context, collection *mongo.Colle
 	if result.Err() != nil {
 		// Check if the error is due to "no documents in result".
 		if result.Err() == mongo.ErrNoDocuments {
-			logf(DEBUG, "Info RetrieveArticleByMessageIDHash not found hash=%s", *messageIDHash)
+			logf(DEBUG, "Info RetrieveArticleByMessageID not found messageID='%s'", *messageID)
 			return nil, nil
 		}
 		// Return other errors as they indicate a problem with the query.
@@ -160,23 +160,23 @@ func RetrieveArticleByMessageIDHash(ctx context.Context, collection *mongo.Colle
 	// Decode the article from the BSON representation to a MongoArticle object.
 	var article MongoArticle
 	if err := result.Decode(&article); err != nil {
-		log.Printf("Error RetrieveArticleByMessageIDHash result.Decode err='%v'", err)
+		log.Printf("Error RetrieveArticleByMessageID result.Decode err='%v'", err)
 		return nil, err
 	}
 
 	return &article, nil
-} // end func RetrieveArticleByMessageIDHash
+} // end func RetrieveArticleByMessageID
 
-// RetrieveArticlesByMessageIDHashes is a function that retrieves articles from the MongoDB collection based on a list of MessageIDHashes.
+// RetrieveArticlesByMessageIDs is a function that retrieves articles from the MongoDB collection based on a list of MessageIDes.
 // function written by AI.
-func RetrieveArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Collection, msgidhashes []*string) ([]*MongoArticle, error) {
-	// Filter to find the articles with the given MessageIDHashes.
-	filter := bson.M{"_id": bson.M{"$in": msgidhashes}}
+func RetrieveArticlesByMessageIDs(ctx context.Context, collection *mongo.Collection, messageIDs []*string) ([]*MongoArticle, error) {
+	// Filter to find the articles with the given MessageIDes.
+	filter := bson.M{"_id": bson.M{"$in": messageIDs}}
 
 	// Find the articles in the collection.
 	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
-		log.Printf("Error RetrieveArticlesByMessageIDHashes coll.Find err='%v'", err)
+		log.Printf("Error RetrieveArticlesByMessageIDs coll.Find err='%v'", err)
 		return nil, err
 	}
 	defer cursor.Close(ctx)
@@ -187,34 +187,34 @@ func RetrieveArticlesByMessageIDHashes(ctx context.Context, collection *mongo.Co
 	for cursor.Next(ctx) {
 		var article MongoArticle
 		if err := cursor.Decode(&article); err != nil {
-			log.Printf("Error RetrieveArticlesByMessageIDHashes cursor.Decode article err='%v'", err)
+			log.Printf("Error RetrieveArticlesByMessageIDs cursor.Decode article err='%v'", err)
 			return nil, err
 		}
 		article.Found = true
 		articles = append(articles, &article)
-		founds = append(founds, article.MessageIDHash)
+		founds = append(founds, article.MessageID)
 	}
-	for _, hash := range msgidhashes {
-		if !isPStringInSlice(founds, hash) {
-			//logf(DEBUG, "RetrieveArticlesByMessageIDHashes notfound hash='%s'", *hash)
-			var article MongoArticle
-			article.MessageIDHash = hash
-			articles = append(articles, &article)
+	for _, messageID := range messageIDs {
+		if !isPStringInSlice(founds, messageID) {
+			logf(DEBUG, "RetrieveArticlesByMessageIDs notfound messageID='%s'", *messageID)
+			article := &MongoArticle{}
+			article.MessageID = messageID
+			articles = append(articles, article)
 		}
 	}
 	if err := cursor.Err(); err != nil {
-		log.Printf("Error RetrieveArticlesByMessageIDHashes cursor.Err='%v'", err)
+		log.Printf("Error RetrieveArticlesByMessageIDs cursor.Err='%v'", err)
 		return nil, err
 	}
 
 	return articles, nil
-} // end func RetrieveArticlesByMessageIDHashes
+} // end func RetrieveArticlesByMessageIDs
 
-// RetrieveHeadByMessageIDHash is a function that retrieves the "Head" data of an article based on its MessageIDHash.
+// RetrieveHeadByMessageID is a function that retrieves the "Head" data of an article based on its MessageID.
 // function written by AI.
-func RetrieveHeadByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash *string) (*[]byte, error) {
-	// Filter to find the article with the given "messageIDHash".
-	filter := bson.M{"_id": *messageIDHash}
+func RetrieveHeadByMessageID(ctx context.Context, collection *mongo.Collection, messageID *string) (*[]byte, error) {
+	// Filter to find the article with the given "messageID".
+	filter := bson.M{"_id": *messageID}
 
 	// Projection to select only the "Head" field.
 	projection := bson.M{"head": true, "hs": true, "body": false, "bs": false, "enc": true}
@@ -239,13 +239,13 @@ func RetrieveHeadByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 	}
 
 	return article.Head, nil
-} // end func retrieveHeadByMessageIDHash
+} // end func retrieveHeadByMessageID
 
-// RetrieveBodyByMessageIDHash is a function that retrieves the "Body" data of an article  based on its MessageIDHash.
+// RetrieveBodyByMessageID is a function that retrieves the "Body" data of an article  based on its MessageID.
 // function written by AI.
-func RetrieveBodyByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash *string) (*[]byte, error) {
-	// Filter to find the article with the given "messageIDHash".
-	filter := bson.M{"_id": *messageIDHash}
+func RetrieveBodyByMessageID(ctx context.Context, collection *mongo.Collection, messageID *string) (*[]byte, error) {
+	// Filter to find the article with the given "messageID".
+	filter := bson.M{"_id": *messageID}
 
 	// Projection to select only the "Body" field.
 	projection := bson.M{"head": false, "hs": false, "body": true, "bs": true, "enc": true}
@@ -270,17 +270,17 @@ func RetrieveBodyByMessageIDHash(ctx context.Context, collection *mongo.Collecti
 	}
 
 	return article.Body, nil
-} // end func retrieveBodyByMessageIDHash
+} // end func retrieveBodyByMessageID
 
-// CheckIfArticleExistsByMessageIDHash checks if an article with the given MessageIDHash exists in the MongoDB collection.
+// CheckIfArticleExistsByMessageID checks if an article with the given MessageID exists in the MongoDB collection.
 // function written by AI.
-func CheckIfArticleExistsByMessageIDHash(ctx context.Context, collection *mongo.Collection, messageIDHash *string) (bool, error) {
-	// Filter to find the articles with the given MessageIDHash.
+func CheckIfArticleExistsByMessageID(ctx context.Context, collection *mongo.Collection, messageID *string) (bool, error) {
+	// Filter to find the articles with the given MessageID.
 
 	// This creates a projection document that specifies which fields should be included or excluded in the result.
 	projection := bson.M{"head": false, "hs": true, "body": false, "bs": true, "enc": true}
 
-	filter := bson.M{"_id": messageIDHash}
+	filter := bson.M{"_id": messageID}
 	result := collection.FindOne(ctx, filter, options.FindOne().SetProjection(projection))
 	if result.Err() != nil {
 		// Check if the error is due to "no documents in result".
@@ -290,8 +290,8 @@ func CheckIfArticleExistsByMessageIDHash(ctx context.Context, collection *mongo.
 		// Return other errors as they indicate a problem with the query.
 		return false, result.Err()
 	}
-	// The document with the given MessageIDHash exists in the collection.
+	// The document with the given MessageID exists in the collection.
 	return true, nil
-} // end func CheckIfArticleExistsByMessageIDHash
+} // end func CheckIfArticleExistsByMessageID
 
 // EOF mo_db_funcs.go

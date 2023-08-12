@@ -16,19 +16,19 @@
 
 - IsDup: Checks if an error is a duplicate key error in MongoDB.
 
-- DeleteManyArticles: Deletes multiple articles from the MongoDB collection based on a list of MessageIDHashes.
+- DeleteManyArticles: Deletes multiple articles from the MongoDB collection based on a list of MessageIDes.
 
-- DeleteArticlesByMessageIDHash: Deletes an article from the MongoDB collection by its MessageIDHash.
+- DeleteArticlesByMessageID: Deletes an article from the MongoDB collection by its MessageID.
 
-- RetrieveArticleByMessageIDHash: Retrieves an article from the MongoDB collection by its MessageIDHash.
+- RetrieveArticleByMessageID: Retrieves an article from the MongoDB collection by its MessageID.
 
-- RetrieveArticlesByMessageIDHashes: Retrieves articles from the MongoDB collection based on a list of MessageIDHashes.
+- RetrieveArticlesByMessageIDs: Retrieves articles from the MongoDB collection based on a list of MessageIDes.
 
-- RetrieveHeadByMessageIDHash: Retrieves the "Head" data of an article based on its MessageIDHash.
+- RetrieveHeadByMessageID: Retrieves the "Head" data of an article based on its MessageID.
 
-- RetrieveBodyByMessageIDHash: Retrieves the "Body" data of an article based on its MessageIDHash.
+- RetrieveBodyByMessageID: Retrieves the "Body" data of an article based on its MessageID.
 
-- CheckIfArticleExistsByMessageIDHash: Checks if an article exists in the MongoDB collection based on its MessageIDHash.
+- CheckIfArticleExistsByMessageID: Checks if an article exists in the MongoDB collection based on its MessageID.
 
 # Using External Context
 
@@ -117,7 +117,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	hash1, hash2, hash3 := "hash1", "hash2, "hash3"
+	messageID1, messageID2, messageID3 := "<messageID1@local.test>", "<messageID2@local.test>", "<messageID3@local.test>"
 	head1 := []byte("This is the head of article 1")
 	body1 := []byte("This is the body of article 1")
 	head2 := []byte("This is the head of article 2")
@@ -127,8 +127,7 @@ func main() {
 
 	// Example of inserting a single article
 	article := &mongostorage.MongoArticle{
-			MessageIDHash: &hash1,
-			MessageID:     &hash1,
+			MessageID:     &messageID1,
 			Newsgroups:    []*string{"group1", "group2"},
 			Head:          &head1,
 			Headsize:      len(head1),
@@ -144,8 +143,7 @@ func main() {
 	// Example of inserting multiple articles in bulk
 	articles := []*mongostorage.MongoArticle{
 		{
-			MessageIDHash: &hash1,
-			MessageID:     &hash1,
+			MessageID:     &messageID1,
 			Newsgroups:    []*string{"group1", "group2"},
 			Head:          &head1,
 			Headsize:      len(head1),
@@ -154,8 +152,7 @@ func main() {
 			Enc:           0, // not compressed
 		},
 		{
-			MessageIDHash: &hash1,  // will generate a duplicate error
-			MessageID:     &hash1,
+			MessageID:     &messageID1,  // will generate a duplicate error
 			Newsgroups:    []*string{"group1", "group2"},
 			Head:          &head1,
 			Headsize:      len(head1),
@@ -164,8 +161,7 @@ func main() {
 			Enc:           1, // indicator: compressed with GZIP (sender has to apply de/compression)
 		},
 		{
-			MessageIDHash: &hash2,
-			MessageID:     &hash2,
+			MessageID:     &messageID2,
 			Newsgroups:    []*string{"group3", "group4"},
 			Head:          &head2,
 			Headsize:      len(head2),
@@ -174,8 +170,7 @@ func main() {
 			Enc:           2, // indicator: compressed with ZLIB (sender has to apply de/compression)
 		},
 		{
-			MessageIDHash: &hash3,
-			MessageID:     &hash32,
+			MessageID:     &messageID,
 			Newsgroups:    []*string{"group3", "group4"},
 			Head:          &head3,
 			Headsize:      len(head3),
@@ -203,8 +198,8 @@ func main() {
 	}
 
 	// Example of retrieving an article
-	messageIDHash := "your-article-message-id-hash"
-	article, err := mongostorage.RetrieveArticleByMessageIDHash(ctx, collection, &messageIDHash)
+	messageID := "<test@message-id.test>"
+	article, err := mongostorage.RetrieveArticleByMessageID(ctx, collection, &messageID)
 	if err != nil {
 		log.Printf("Error retrieving article: %v", err)
 	} else if article != nil {
@@ -213,10 +208,9 @@ func main() {
 		log.Println("Article not found.")
 	}
 
-	// Example of retrieving multiple articles based on a list of MessageIDHashes
-	hash1, hash2, hash3 := "hash1", "hash2", "hash3"
-	msgIDHashes := []*string{ &hash1, &hash2, &hash3, ...}
-	articles, err := mongostorage.RetrieveArticleByMessageIDHashes(ctx, collection, msgIDHashes)
+	// Example of retrieving multiple articles based on a list of MessageIDes
+	messageIDs := []*string{ &messageID1, &messageID2, &messageID3, ...}
+	articles, err := mongostorage.RetrieveArticleByMessageIDes(ctx, collection, messageIDs)
 	if err != nil {
 		log.Printf("Error retrieving articles: %v", err)
 	} else {
@@ -230,8 +224,8 @@ func main() {
 	}
 
 	// Example of deleting article(s).
-	msgidhashes := []string{"hash1", "hash2", "hash3"}
-	success := mongostorage.DeleteManyArticles(ctx, collection, msgidhashes)
+	messageIDs := []string{&messageID, &messageID2, &messageID3}
+	success := mongostorage.DeleteManyArticles(ctx, collection, messageIDs)
 	if success {
 		log.Println("Articles deleted successfully.")
 	}
@@ -239,19 +233,13 @@ func main() {
 }
 ```
 
-- The `MessageIDHash` field in the `MongoArticle` struct serves as an identifier for each article in the MongoDB collection.
-
-- The name "hash" in `MessageIDHash` does not necessarily imply that it must be a cryptographic hash; it can be any string, and it acts as a unique identifier for the document in the collection.
-
-- The field `MessageIDHash` is connected to the MongoDB's special `_id` field, which uniquely identifies each document in a collection.
+- The field `MessageID` is connected to the MongoDB's special `_id` field, which uniquely identifies each document in a collection.
 
 - MongoDB requires each document to have a unique value for its `_id` field.
 
-- By setting the MessageIDHash as the value of the `_id` field, we ensure that each article is uniquely identified in the collection.
+- By setting the MessageID as the value of the `_id` field, we ensure that each article is uniquely identified in the collection.
 
-- Additionally, the MongoArticle struct also contains a separate field named MessageID, which can store the original, non-hashed version of the article's identifier.
-
-- This allows developers to store both the original identifier and the hashed identifier in the same document, providing flexibility and convenience when working with the articles.
+- Additionally, the MongoArticle struct also contains a separate field named `Hash`, which can store the hashed version of the article's identifier.
 
 
 ## Getting Started
@@ -286,7 +274,7 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 
 - The use of channels (Mongo_Insert_queue, Mongo_Delete_queue, and Mongo_Reader_queue) helps coordinate and distribute the workload among these worker functions, enabling concurrent operations on the MongoDB collections.
 
-- `Mongo_Delete_queue`: This channel is used to enqueue articles for deletion, specifying their corresponding hashes, which will be processed by the delete worker goroutines.
+- `Mongo_Delete_queue`: This channel is used to enqueue articles for deletion, specifying their corresponding Message-ID, which will be processed by the delete worker goroutines.
 - `Mongo_Insert_queue`: This channel is used to enqueue articles for insertion as `MongoArticle` instances, which will be processed by the insert worker goroutines.
 - `Mongo_Reader_queue`: This channel is used to enqueue read requests for articles, which will be processed by the reader worker goroutines.
 
@@ -311,7 +299,7 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 
 - `DelQueue` (int): The size of the delete queue. It specifies how many delete requests can be buffered before the send operation blocks. If DelQueue is 0 or negative, a default value will be used. The DelQueue parameter sets the maximum number of article deletion requests that can be buffered before the worker goroutines start processing them. When the number of articles to delete exceeds this limit, the send operation on the Mongo_Delete_queue channel will block until space becomes available in the queue.
 
-- `DelBatch` (int): The number of Msgidhashes one DeleteWorker will cache before processing deletions in a batch operation.
+- `DelBatch` (int): The number of MessageIDs one DeleteWorker will cache before processing deletions in a batch operation.
 
 - `InsWorker` (int): The number of worker goroutines to handle article insertions. It determines the level of concurrency for insertion operations. The InsWorker parameter determines the number of worker goroutines assigned to handle article insertions. This parameter controls the concurrency for insertion operations, allowing multiple articles to be inserted simultaneously.
 
@@ -343,11 +331,11 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 ```go
 // MongoGetRequest represents a read request for fetching articles from MongoDB.
 // It contains the following fields:
-//   - Msgidhashes: A slice of messageIDHashes for which articles are requested.
+//   - MessageIDs: A slice of messageIDes for which articles are requested.
 //   - RetChan: A channel to receive the fetched articles as []*MongoArticle.
-//   - STAT: Set to true to only CheckIfArticleExistsByMessageIDHash
+//   - STAT: Set to true to only CheckIfArticleExistsByMessageID
 type MongoGetRequest struct {
-	Msgidhashes []*string
+	MessageIDs []*string
 	STAT        bool
 	RetChan     chan []*MongoArticle
 } // end type MongoGetRequest struct
@@ -357,15 +345,15 @@ type MongoGetRequest struct {
 ```go
 // MongoDelRequest represents a delete request for deleting articles from MongoDB.
 // It contains the following fields:
-// - Msgidhashes: A slice of messageIDHashes for which articles are requested to be deleted.
+// - MessageIDs: A slice of messageIDes for which articles are requested to be deleted.
 // - RetChan: A channel to receive the count of deleted articles as int64.
 type MongoDelRequest struct {
-	Msgidhashes []*string
+	MessageIDs []*string
 	RetChan     chan int64
 } // end type MongoDelRequest struct
 ```
 
-- `[]*Msgidhash`: A slice of pointers to string, representing a list of MessageIDHashes for which articles are requested. Each MessageIDHash uniquely identifies an article in the MongoDB collection.
+- `[]*MessageIDs`: A slice of pointers to string, representing a list of MessageIDes for which articles are requested. Each MessageID uniquely identifies an article in the MongoDB collection.
 
 - `[]*MongoArticle`: This is a slice of pointers to `MongoArticle` objects. It can hold multiple pointers to `MongoArticle` objects, allowing for the representation of multiple articles that are fetched from the database.
 
@@ -377,8 +365,8 @@ It contains various fields to store information about the article.
 
 ```go
 type MongoArticle struct {
-	MessageIDHash *string   `bson:"_id"`
-	MessageID     *string   `bson:"msgid"`
+	MessageID *string   `bson:"_id"`
+	MessageID     *string   `bson:"messageID"`
 	Newsgroups    *[]string `bson:"newsgroups"`
 	Head          *[]byte   `bson:"head"`
 	Headsize      int       `bson:"hs"`
@@ -390,9 +378,7 @@ type MongoArticle struct {
 ```
 The `MongoArticle` struct is a custom data type defined in the codebase, which represents an article to be stored in and retrieved from a MongoDB database.
 
-- `MessageIDHash`: The unique identifier (hash) for the article, stored as a pointer to a string and mapped to the `_id` field in the MongoDB collection.
-
-- `MessageID`: The Message-ID of the article, stored as a pointer to a string and mapped to the `msgid` field in the MongoDB collection.
+- `MessageID`: The unique identifier for the article, stored as a pointer to a string and mapped to the `_id` field in the MongoDB collection.
 
 - `Newsgroups`: This field is a slice of pointers to strings, representing the newsgroups linked to the article. It is mapped to the `newsgroups` field in the MongoDB collection.
 
@@ -422,7 +408,7 @@ mongoWorker_Insert is responsible for inserting articles into the specified Mong
 - By launching multiple mongoWorker_Insert instances concurrently (controlled by InsWorker), articles can be inserted in parallel, reducing insert times.
 - This concurrent approach efficiently distributes the write workload across available resources, avoiding bottlenecks and ensuring efficient insertion of multiple articles simultaneously.
 - Before starting the insertion process, the worker initializes and establishes a connection to the MongoDB database using the provided URI and database name.
-- Upon receiving an article from the Mongo_Insert_queue, the worker performs a duplicate check based on the MessageIDHash to avoid inserting duplicates.
+- Upon receiving an article from the Mongo_Insert_queue, the worker performs a duplicate check based on the MessageID to avoid inserting duplicates.
 - When using compression, it is advisable to set the Enc field of the Articles struct to the corresponding value (e.g., mongostorage.GZIP_enc or mongostorage.ZLIB_enc) so that it can be identified and decompressed correctly later during retrieval.
 - The worker then inserts the article into the MongoDB collection and logs relevant information such as raw size, compressed size (if applied), and the success or failure of the insertion.
 
@@ -433,7 +419,7 @@ mongoWorker_Delete is responsible for deleting articles from the specified Mongo
 
 - By using multiple mongoWorker_Delete instances concurrently (controlled by DelWorker), the system efficiently handles article deletions from the MongoDB database, particularly useful for large datasets or frequently changing data.
 - The worker initializes and establishes a connection to the MongoDB database before starting the deletion process.
-- Upon receiving an article hash from the Mongo_Delete_queue, the worker proceeds to delete it from the MongoDB collection and logs the relevant information.
+- Upon receiving an messageID from the Mongo_Delete_queue, the worker proceeds to delete it from the MongoDB collection and logs the relevant information.
 
 
 ## mongoWorker_Reader
@@ -442,8 +428,8 @@ mongoWorker_Reader is responsible for handling read requests to retrieve article
 
 - By launching multiple mongoWorker_Reader instances concurrently (controlled by GetWorker), articles can be retrieved in parallel, reducing read times.
 - Before starting the reading process, the worker initializes and establishes a connection to the MongoDB database.
-- The worker listens to the Mongo_Reader_queue for read requests, each represented as a `MongoGetRequest` struct containing article hashes (`Msgidhashes`) and a return channel (`RetChan`) for sending back the retrieved articles.
-- Upon receiving a read request, the worker queries the MongoDB collection to retrieve the corresponding articles (in compressed form) based on the provided article hashes (`Msgidhashes`).
+- The worker listens to the Mongo_Reader_queue for read requests, each represented as a `MongoGetRequest` struct containing article (`MessageIDs`) and a return channel (`RetChan`) for sending back the retrieved articles.
+- Upon receiving a read request, the worker queries the MongoDB collection to retrieve the corresponding articles (in compressed form) based on the provided article (`MessageIDs`).
 - Once the articles are retrieved, the worker sends them back to the main program through the `RetChan` channel of the corresponding `MongoGetRequest` struct, enabling efficient and concurrent reading of articles from the database.
 
 

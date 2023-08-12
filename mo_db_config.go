@@ -22,7 +22,7 @@ func GetDefaultMongoStorageConfig() MongoStorageConfig {
 		// Default number of delete worker goroutines
 		DelWorker: DefaultDelWorker,
 
-		// Default number of Msgidhashes a DeleteWorker will cache before deleting to batch into one process
+		// Default number of MessageIDs a DeleteWorker will cache before deleting to batch into one process
 		DelBatch: DefaultDeleteBatchSize,
 
 		// Default size of the insert queue (number of insertion requests buffered before blocking)

@@ -119,7 +119,7 @@ type MongoStorageConfig struct {
 	// The specific test details are not provided in the function, and the flag can be used for application-specific testing purposes.
 	TestAfterInsert bool
 
-	// DelBatch sets the number of Msgidhashes a DeleteWorker will cache before deleting to batch into one process.
+	// DelBatch sets the number of MessageIDs a DeleteWorker will cache before deleting to batch into one process.
 	DelBatch int
 
 	// InsBatch sets the number of Articles an InsertWorker will cache before inserting to batch into one process.
@@ -131,8 +131,8 @@ type MongoStorageConfig struct {
 
 // MongoArticle represents an article stored in MongoDB.
 // It contains the following fields:
-// - MessageIDHash: The unique identifier (hash) of the article (mapped to the "_id" field in MongoDB).
-// - MessageID: The Message-ID of the article (mapped to the "msgid" field in MongoDB).
+// - MessageID: The unique identifier of the article (mapped to the "_id" field in MongoDB).
+// - Hash: of Message-ID (mapped to the "hash" field in MongoDB).
 // - Newsgroups: A slice of strings containing the newsgroups associated with the article (mapped to the "newsgroups" field in MongoDB).
 // - Head: A byte slice representing the head (header) of the article (mapped to the "head" field in MongoDB).
 // - Headsize: An integer representing the size of the head in bytes (mapped to the "hs" field in MongoDB).
@@ -141,8 +141,8 @@ type MongoStorageConfig struct {
 // - Enc: An integer representing the encoding type of the article (mapped to the "enc" field in MongoDB).
 // - Found: A boolean indicating whether the article was found during retrieval (not mapped to MongoDB).
 type MongoArticle struct {
-	MessageIDHash *string   `bson:"_id"`
-	MessageID     *string   `bson:"msgid"`
+	MessageID     *string   `bson:"_id"`
+	Hash          *string   `bson:"hash"`
 	Newsgroups    []*string `bson:"newsgroups"`
 	Head          *[]byte   `bson:"head"`
 	Headsize      int       `bson:"hs"`
@@ -163,21 +163,21 @@ type MongoReqReturn struct {
 
 // MongoGetRequest represents a read request for fetching articles from MongoDB.
 // It contains the following fields:
-//   - Msgidhashes: A slice of messageIDHashes for which articles are requested.
+//   - MessageIDs: A slice of messageIDes for which articles are requested.
 //   - RetChan: A channel to receive the fetched articles as []*MongoArticle.
-//   - STAT: Set to true to only CheckIfArticleExistsByMessageIDHash
+//   - STAT: Set to true to only CheckIfArticleExistsByMessageID
 type MongoGetRequest struct {
-	Msgidhashes []*string
+	MessageIDs []*string
 	STAT        bool
 	RetChan     chan []*MongoArticle
 } // end type MongoGetRequest struct
 
 // MongoDelRequest represents a delete request for deleting articles from MongoDB.
 // It contains the following fields:
-// - Msgidhashes: A slice of messageIDHashes for which articles are requested to be deleted.
+// - MessageIDs: A slice of messageIDes for which articles are requested to be deleted.
 // - RetChan: A channel to receive the count of deleted articles as int64.
 type MongoDelRequest struct {
-	Msgidhashes []*string
+	MessageIDs []*string
 	RetChan     chan int64
 } // end type MongoDelRequest struct
 

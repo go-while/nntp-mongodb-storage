@@ -90,7 +90,7 @@ forever:
 			}
 
 			if do_insert {
-				logf(DEBUG, "%s Pre-Ins Many msgidhashes=%d", who, len_arts)
+				logf(DEBUG, "%s Pre-Ins Many messageIDs=%d", who, len_arts)
 				did += len_arts
 				ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 				if err := InsertManyArticles(ctx, collection, articles); err != nil {
@@ -102,11 +102,11 @@ forever:
 				if cfg.TestAfterInsert {
 					for _, article := range articles {
 						ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
-						if retbool, err := CheckIfArticleExistsByMessageIDHash(ctx, collection, article.MessageIDHash); retbool {
+						if retbool, err := CheckIfArticleExistsByMessageID(ctx, collection, article.MessageID); retbool {
 							// The article with the given hash exists.
-							logf(DEBUG, "%s article exists: %s", who, *article.MessageIDHash)
+							logf(DEBUG, "%s article exists: %s", who, *article.MessageID)
 						} else if err != nil {
-							log.Printf("Error %s CheckIfArticleExistsByMessageIDHash: %s err %v", who, *article.MessageIDHash, err)
+							log.Printf("Error %s CheckIfArticleExistsByMessageID: %s err %v", who, *article.MessageID, err)
 						}
 					}
 				}
@@ -183,10 +183,10 @@ forever:
 } // end func mongoWorker_Insert
 
 // mongoWorker_Delete is a goroutine function responsible for processing incoming delete requests from the 'Mongo_Delete_queue'.
-// It deletes articles from a MongoDB collection based on the given MessageIDHashes provided in the 'Mongo_Delete_queue'.
+// It deletes articles from a MongoDB collection based on the given MessageIDes provided in the 'Mongo_Delete_queue'.
 // The function continuously listens for delete requests and processes them until the 'Mongo_Delete_queue' is closed.
 // Note: If cfg.DelBatch is set to 1, the function will delete articles one by one, processing individual delete requests from the queue.
-// Otherwise, it will delete articles in bulk based on the accumulated MessageIDHashes.
+// Otherwise, it will delete articles in bulk based on the accumulated MessageIDes.
 // function partly written by AI.
 func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 	if wid <= 0 {
@@ -215,9 +215,8 @@ func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 		break
 	}
 	timeout := time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
-	//msgidhashes := []*string{}
-	delrequests := []*MongoDelRequest{}
-	delnoretchan := []*string{} // contains only (batched *messageidhash) if no return chan is set
+	delrequests := []*MongoDelRequest{} // cache delete requests with a return channel set
+	delnoretchan := []*string{} // cache messageIDs without return chan
 	is_timeout := false
 	var diff int64
 	var last_delete int64
@@ -226,13 +225,13 @@ func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 	lastping := utils.UnixTimeSec()
 forever:
 	for {
-		len_hashs := len(delrequests) + len(delnoretchan)
+		len_messageIDs := len(delrequests) + len(delnoretchan)
 		do_delete := false
-		if len_hashs == cfg.DelBatch || is_timeout {
+		if len_messageIDs == cfg.DelBatch || is_timeout {
 			diff = utils.UnixTimeMilliSec() - last_delete
-			if len_hashs >= cfg.DelBatch {
+			if len_messageIDs >= cfg.DelBatch {
 				do_delete = true
-			} else if is_timeout && len_hashs > 0 && diff >= cfg.FlushTimer {
+			} else if is_timeout && len_messageIDs > 0 && diff >= cfg.FlushTimer {
 				do_delete = true
 			}
 			if is_timeout {
@@ -241,7 +240,7 @@ forever:
 		} // check if do_delete
 
 		if do_delete {
-			logf(DEBUG, "%s Pre-Del Many len_hashs=%d delrequests=%d delnoretchan=%d cfg.DelBatch=%d", who, len_hashs, len(delrequests), len(delnoretchan), cfg.DelBatch)
+			logf(DEBUG, "%s Pre-Del Many len_messageIDs=%d delrequests=%d delnoretchan=%d cfg.DelBatch=%d", who, len_messageIDs, len(delrequests), len(delnoretchan), cfg.DelBatch)
 
 			// process requests without RetChan first
 			if len(delnoretchan) > 0 {
@@ -262,7 +261,7 @@ forever:
 			if len(delrequests) > 0 {
 				for _, delreq := range delrequests {
 					ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
-					deleted, err := DeleteManyArticles(ctx, collection, delreq.Msgidhashes)
+					deleted, err := DeleteManyArticles(ctx, collection, delreq.MessageIDs)
 					if err != nil {
 						bad++
 						// connection error
@@ -279,7 +278,7 @@ forever:
 			last_delete = utils.UnixTimeMilliSec()
 			lastping = utils.UnixTimeSec()
 		} else {
-			//logf(DEBUG, "!do_delete len_hashs=%d is_timeout=%t last=%d", len_hashs, is_timeout, utils.UnixTimeSec() - last_insert)
+			//logf(DEBUG, "!do_delete len_messageID=%d is_timeout=%t last=%d", len_messageIDs, is_timeout, utils.UnixTimeSec() - last_insert)
 		}
 		if dequeued > 1000*1000 {
 			reboot = true
@@ -306,13 +305,13 @@ forever:
 			dequeued++
 			//DEBUGSLEEP()
 			//logf(DEBUG, "%s process Mongo_Delete_queue", who)  // spammy
-			if len(delreq.Msgidhashes) == 0 {
+			if len(delreq.MessageIDs) == 0 {
 				logf(DEBUG, "WARN Mongo_Delete_queue got empty request")
 				continue // the select
 			}
 			if delreq.RetChan == nil { // requests without return merge into delnoretchan
-				for _, msgidhash := range delreq.Msgidhashes {
-					delnoretchan = append(delnoretchan, msgidhash)
+				for _, messageIDhash := range delreq.MessageIDs {
+					delnoretchan = append(delnoretchan, messageIDhash)
 				}
 			} else {
 				delrequests = append(delrequests, delreq)
@@ -354,7 +353,7 @@ forever:
 } // end func mongoWorker_Delete
 
 // mongoWorker_Reader is a goroutine function responsible for processing incoming read requests from the 'Mongo_Reader_queue'.
-// It reads articles from a MongoDB collection based on the given MessageIDHashes provided in the 'getreq' parameter.
+// It reads articles from a MongoDB collection based on the given MessageIDes provided in the 'getreq' parameter.
 // The function continuously listens for read requests and processes them until the 'Mongo_Reader_queue' is closed.
 // Once the 'Mongo_Reader_queue' is closed, the function performs disconnection from the MongoDB server and terminates.
 // function partly written by AI.
@@ -416,9 +415,9 @@ forever:
 			if getreq.STAT {
 				found := 0
 				var articles []*MongoArticle
-				for i, messageIDHash := range getreq.Msgidhashes {
+				for i, messageID := range getreq.MessageIDs {
 					ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
-					retbool, err := CheckIfArticleExistsByMessageIDHash(ctx, collection, messageIDHash)
+					retbool, err := CheckIfArticleExistsByMessageID(ctx, collection, messageID)
 					if err != nil {
 						log.Printf("Error %s STAT err='%v'", who, err)
 						time.Sleep(time.Second)
@@ -429,29 +428,29 @@ forever:
 					if retbool {
 						found++
 					}
-					articles[i] = &MongoArticle{MessageIDHash: messageIDHash, Found: retbool}
+					articles[i] = &MongoArticle{MessageID: messageID, Found: retbool}
 				}
 				if getreq.RetChan != nil {
-					logf(DEBUG, "passing response %d/%d STAT articles to getreq.RetChan", len(articles), getreq.Msgidhashes)
+					logf(DEBUG, "passing response %d/%d STAT articles to getreq.RetChan", len(articles), getreq.MessageIDs)
 					getreq.RetChan <- articles
 					// sender does not close the getreq.RetChan here so it can be reused for next read request
 				} else {
-					logf(DEBUG, "WARN %s got %d/%d STAT articles getreq.RetChan=nil", who, found, len(getreq.Msgidhashes))
+					logf(DEBUG, "WARN %s got %d/%d STAT articles getreq.RetChan=nil", who, found, len(getreq.MessageIDs))
 				}
 				continue forever
 			}
 
 			ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
-			// Read articles for the given msgidhashes.
-			articles, err := RetrieveArticlesByMessageIDHashes(ctx, collection, getreq.Msgidhashes)
+			// Read articles for the given messageIDs.
+			articles, err := RetrieveArticlesByMessageIDs(ctx, collection, getreq.MessageIDs)
 			if err != nil {
 				bad++
-				log.Printf("Error %s RetrieveArticlesByMessageIDHashes hashs=%d err='%v'", who, len(getreq.Msgidhashes), err)
+				log.Printf("Error %s RetrieveArticlesByMessageIDs messageIDs=%d err='%v'", who, len(getreq.MessageIDs), err)
 				reboot = true
 				break forever
 			}
 			lastping = utils.UnixTimeSec()
-			len_request := len(getreq.Msgidhashes)
+			len_request := len(getreq.MessageIDs)
 			len_got_arts := len(articles)
 			if getreq.RetChan != nil {
 				logf(DEBUG, "passing response %d/%d read articles to getreq.RetChan", len_got_arts, len_request)
