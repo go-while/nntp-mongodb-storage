@@ -89,7 +89,7 @@ newCtx, newCancel := mongostorage.ExtendContextTimeout(ctx, cancel, 20)
 // Now use the newCtx for the MongoDB operation
 ```
 
-- Here's an example of how you can use the mongostorage functions with an external context:
+Use the mongostorage functions with an external context:
 
 ```go
 package main
@@ -320,14 +320,22 @@ The Load_MongoDB(cfg *MongoStorageConfig) function accepts a pointer to MongoSto
 
 ## Compression Constants (Magic Numbers)
 
-- `NOCOMP` (int): Represents the value indicating no compression for articles. Value: 0
+These Compression Constants are indicators so you know which algo is needed for decompression.
 
-- `GZIP_enc` (int): Represents the value indicating GZIP compression for articles. Value: 1
-
-- `ZLIB_enc` (int): Represents the value indicating ZLIB compression for articles. Value: 2
+Compression has to be applied by sender before inserting the articles.
 
 
-# MongoGetRequest Struct
+- `NOCOMP` (int): Represents the value indicating no compression for article. Value: 0 (default)
+
+- `GZIP_enc` (int): Represents the value indicating GZIP compression for article. Value: 1
+
+- `ZLIB_enc` (int): Represents the value indicating ZLIB compression for article. Value: 2
+
+- `FLATE_enc` (int): Represents the value indicating FLATE compression for article. Value: 3
+
+
+
+# MongoGetRequest
 ```go
 // MongoGetRequest represents a read request for fetching articles from MongoDB.
 // It contains the following fields:
@@ -366,12 +374,14 @@ It contains various fields to store information about the article.
 ```go
 type MongoArticle struct {
 	MessageID *string   `bson:"_id"`
-	MessageID     *string   `bson:"messageID"`
-	Newsgroups    *[]string `bson:"newsgroups"`
+	Hash          *string   `bson:"hash"`
+	Newsgroups    *[]string `bson:"ng"`
 	Head          *[]byte   `bson:"head"`
 	Headsize      int       `bson:"hs"`
 	Body          *[]byte   `bson:"body"`
 	Bodysize      int       `bson:"bs"`
+	Arrival       int64     `bson:"at"`
+	HeadDate      int64     `bson:"hd"`
 	Enc           int       `bson:"enc"`
 	Found         bool
 } // end type MongoArticle struct
@@ -390,7 +400,11 @@ The `MongoArticle` struct is a custom data type defined in the codebase, which r
 
 - `Bodysize`: The size of the article's body in bytes, represented as an integer and mapped to the `bs` field in the MongoDB collection.
 
-- `Enc`: An integer representing the encoding type of the article, mapped to the `enc` field in the MongoDB collection.
+- `Arrival`: An integer64 (unixtime) representing the arrival time(stamp) of the article, mapped to the `at` field in the MongoDB collection.
+
+- `HeadDate`: An integer64 (unixtime) representing the header time(stamp) of the article, mapped to the `hd` field in the MongoDB collection.
+
+- `Enc`: An integer representing the encoding/compression type of the article, mapped to the `enc` field in the MongoDB collection.
 
 - `Found`: A boolean flag that is used to indicate whether the article was found during a retrieval operation. It is initially set to `false` and may be modified by the mongoWorker_Reader to indicate if an article was successfully retrieved.
 
