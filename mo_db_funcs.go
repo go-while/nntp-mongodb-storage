@@ -217,7 +217,7 @@ func RetrieveHeadByMessageID(ctx context.Context, collection *mongo.Collection, 
 	filter := bson.M{"_id": *messageID}
 
 	// Projection to select only the "Head" field.
-	projection := bson.M{"head": true, "hs": true, "body": false, "bs": false, "enc": true}
+	projection := bson.M{"head": true, "hs": true, "enc": true}
 
 	// Find the article in the collection and select only the "Head" field.
 	result := collection.FindOne(ctx, filter, options.FindOne().SetProjection(projection))
@@ -248,7 +248,7 @@ func RetrieveBodyByMessageID(ctx context.Context, collection *mongo.Collection, 
 	filter := bson.M{"_id": *messageID}
 
 	// Projection to select only the "Body" field.
-	projection := bson.M{"head": false, "hs": false, "body": true, "bs": true, "enc": true}
+	projection := bson.M{"body": true, "bs": true, "enc": true}
 
 	// Find the article in the collection and select only the "Body" field.
 	result := collection.FindOne(ctx, filter, options.FindOne().SetProjection(projection))
