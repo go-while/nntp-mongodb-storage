@@ -129,17 +129,11 @@ type MongoStorageConfig struct {
 	FlushTimer int64
 } // end type MongoStorageConfig
 
+type MongoArticles struct {
+	List []*MongoArticle
+}
+
 // MongoArticle represents an article stored in MongoDB.
-// It contains the following fields:
-// - MessageID: The unique identifier of the article (mapped to the "_id" field in MongoDB).
-// - Hash: of Message-ID (mapped to the "hash" field in MongoDB).
-// - Newsgroups: A slice of strings containing the newsgroups associated with the article (mapped to the "newsgroups" field in MongoDB).
-// - Head: A byte slice representing the head (header) of the article (mapped to the "head" field in MongoDB).
-// - Headsize: An integer representing the size of the head in bytes (mapped to the "hs" field in MongoDB).
-// - Body: A byte slice representing the body (content) of the article (mapped to the "body" field in MongoDB).
-// - Bodysize: An integer representing the size of the body in bytes (mapped to the "bs" field in MongoDB).
-// - Enc: An integer representing the encoding type of the article (mapped to the "enc" field in MongoDB).
-// - Found: A boolean indicating whether the article was found during retrieval (not mapped to MongoDB).
 type MongoArticle struct {
 	MessageID     *string   `bson:"_id"`
 	Hash          *string   `bson:"hash"`
@@ -148,24 +142,13 @@ type MongoArticle struct {
 	Headsize      int       `bson:"hs"`
 	Body          *[]byte   `bson:"body"`
 	Bodysize      int       `bson:"bs"`
+	Arrival       int64     `bson:"at"`
+	HeadDate      int64     `bson:"hd"`
 	Enc           int       `bson:"enc"`
 	Found         bool
 } // end type MongoArticle struct
 
-/*
-// MongoReqReturn represents the return value for a read request in MongoDB.
-// It contains the following field:
-// - Articles: A slice of pointers to MongoArticle objects representing the fetched articles.
-type MongoReqReturn struct {
-	Articles []*MongoArticle
-} // end type MongoReqReturn struct
-*/
-
 // MongoGetRequest represents a read request for fetching articles from MongoDB.
-// It contains the following fields:
-//   - MessageIDs: A slice of messageIDes for which articles are requested.
-//   - RetChan: A channel to receive the fetched articles as []*MongoArticle.
-//   - STAT: Set to true to only CheckIfArticleExistsByMessageID
 type MongoGetRequest struct {
 	MessageIDs []*string
 	STAT        bool
@@ -173,9 +156,6 @@ type MongoGetRequest struct {
 } // end type MongoGetRequest struct
 
 // MongoDelRequest represents a delete request for deleting articles from MongoDB.
-// It contains the following fields:
-// - MessageIDs: A slice of messageIDes for which articles are requested to be deleted.
-// - RetChan: A channel to receive the count of deleted articles as int64.
 type MongoDelRequest struct {
 	MessageIDs []*string
 	RetChan     chan int64
