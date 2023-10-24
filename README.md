@@ -127,11 +127,11 @@ func main() {
 
 	// Example of inserting a single article
 	article := &mongostorage.MongoArticle{
-			MessageID:     &messageID1,
-			Newsgroups:    []*string{"group1", "group2"},
-			Head:          &head1,
+			MessageID:     messageID1,
+			Newsgroups:    []string{"group1", "group2"},
+			Head:          head1,
 			Headsize:      len(head1),
-			Body:          &body1,
+			Body:          body1,
 			Bodysize:      len(body1),
 			Enc:           0, // not compressed
 	}
@@ -143,38 +143,38 @@ func main() {
 	// Example of inserting multiple articles in bulk
 	articles := []*mongostorage.MongoArticle{
 		{
-			MessageID:     &messageID1,
-			Newsgroups:    []*string{"group1", "group2"},
-			Head:          &head1,
+			MessageID:     messageID1,
+			Newsgroups:    []string{"group1", "group2"},
+			Head:          head1,
 			Headsize:      len(head1),
-			Body:          &body1,
+			Body:          body1,
 			Bodysize:      len(body1),
 			Enc:           0, // not compressed
 		},
 		{
-			MessageID:     &messageID1,  // will generate a duplicate error
-			Newsgroups:    []*string{"group1", "group2"},
-			Head:          &head1,
+			MessageID:     messageID1,  // will generate a duplicate error
+			Newsgroups:    []string{"group1", "group2"},
+			Head:          head1,
 			Headsize:      len(head1),
-			Body:          &body1,
+			Body:          body1,
 			Bodysize:      len(body1),
 			Enc:           1, // indicator: compressed with GZIP (sender has to apply de/compression)
 		},
 		{
-			MessageID:     &messageID2,
-			Newsgroups:    []*string{"group3", "group4"},
-			Head:          &head2,
+			MessageID:     messageID2,
+			Newsgroups:    []string{"group3", "group4"},
+			Head:          head2,
 			Headsize:      len(head2),
-			Body:          &body2,
+			Body:          body2,
 			Bodysize:      len(body2),
 			Enc:           2, // indicator: compressed with ZLIB (sender has to apply de/compression)
 		},
 		{
-			MessageID:     &messageID,
-			Newsgroups:    []*string{"group3", "group4"},
-			Head:          &head3,
+			MessageID:     messageID,
+			Newsgroups:    []string{"group3", "group4"},
+			Head:          head3,
 			Headsize:      len(head3),
-			Body:          &body3,
+			Body:          body3,
 			Bodysize:      len(body3),
 			Enc:           3, // indicator: compressed with FLATE (sender has to apply de/compression)
 		},
@@ -199,7 +199,7 @@ func main() {
 
 	// Example of retrieving an article
 	messageID := "<test@message-id.test>"
-	article, err := mongostorage.RetrieveArticleByMessageID(ctx, collection, &messageID)
+	article, err := mongostorage.RetrieveArticleByMessageID(ctx, collection, messageID)
 	if err != nil {
 		log.Printf("Error retrieving article: %v", err)
 	} else if article != nil {
@@ -209,7 +209,7 @@ func main() {
 	}
 
 	// Example of retrieving multiple articles based on a list of MessageIDes
-	messageIDs := []*string{ &messageID1, &messageID2, &messageID3, ...}
+	messageIDs := []string{ messageID1, messageID2, messageID3, ...}
 	articles, err := mongostorage.RetrieveArticleByMessageIDes(ctx, collection, messageIDs)
 	if err != nil {
 		log.Printf("Error retrieving articles: %v", err)
@@ -224,7 +224,7 @@ func main() {
 	}
 
 	// Example of deleting article(s).
-	messageIDs := []string{&messageID, &messageID2, &messageID3}
+	messageIDs := []string{messageID, messageID2, messageID3}
 	success := mongostorage.DeleteManyArticles(ctx, collection, messageIDs)
 	if success {
 		log.Println("Articles deleted successfully.")
@@ -343,7 +343,7 @@ Compression has to be applied by sender before inserting the articles.
 //   - RetChan: A channel to receive the fetched articles as []*MongoArticle.
 //   - STAT: Set to true to only CheckIfArticleExistsByMessageID
 type MongoGetRequest struct {
-	MessageIDs []*string
+	MessageIDs []string
 	STAT        bool
 	RetChan     chan []*MongoArticle
 } // end type MongoGetRequest struct
@@ -356,12 +356,12 @@ type MongoGetRequest struct {
 // - MessageIDs: A slice of messageIDes for which articles are requested to be deleted.
 // - RetChan: A channel to receive the count of deleted articles as int64.
 type MongoDelRequest struct {
-	MessageIDs []*string
+	MessageIDs []string
 	RetChan     chan int64
 } // end type MongoDelRequest struct
 ```
 
-- `[]*MessageIDs`: A slice of pointers to string, representing a list of MessageIDes for which articles are requested. Each MessageID uniquely identifies an article in the MongoDB collection.
+- `[]MessageIDs`: A slice of strings, representing a list of MessageIDes for which articles are requested. Each MessageID uniquely identifies an article in the MongoDB collection.
 
 - `[]*MongoArticle`: This is a slice of pointers to `MongoArticle` objects. It can hold multiple pointers to `MongoArticle` objects, allowing for the representation of multiple articles that are fetched from the database.
 
@@ -373,12 +373,12 @@ It contains various fields to store information about the article.
 
 ```go
 type MongoArticle struct {
-	MessageID *string   `bson:"_id"`
-	Hash          *string   `bson:"hash"`
-	Newsgroups    *[]string `bson:"ng"`
-	Head          *[]byte   `bson:"head"`
+	MessageID     string   `bson:"_id"`
+	Hash          string   `bson:"hash"`
+	Newsgroups    []string `bson:"ng"`
+	Head          []byte   `bson:"head"`
 	Headsize      int       `bson:"hs"`
-	Body          *[]byte   `bson:"body"`
+	Body          []byte   `bson:"body"`
 	Bodysize      int       `bson:"bs"`
 	Arrival       int64     `bson:"at"`
 	HeadDate      int64     `bson:"hd"`
