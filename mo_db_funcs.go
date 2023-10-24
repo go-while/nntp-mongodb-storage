@@ -104,7 +104,7 @@ func IsDup(err error) (bool, int) {
 
 // DeleteManyArticles is responsible for deleting multiple articles from the MongoDB collection based on a given set of MessageIDes.
 // function written by AI.
-func DeleteManyArticles(ctx context.Context, collection *mongo.Collection, messageIDs []*string) (int64, error) {
+func DeleteManyArticles(ctx context.Context, collection *mongo.Collection, messageIDs []string) (int64, error) {
 	// Build the filter for DeleteMany
 	filter := bson.M{
 		"_id": bson.M{
@@ -125,9 +125,9 @@ func DeleteManyArticles(ctx context.Context, collection *mongo.Collection, messa
 
 // DeleteArticlesByMessageID deletes an article from the MongoDB collection by its MessageID.
 // function written by AI.
-func DeleteArticlesByMessageID(ctx context.Context, collection *mongo.Collection, messageID *string) error {
+func DeleteArticlesByMessageID(ctx context.Context, collection *mongo.Collection, messageID string) error {
 	// Filter to find the articles with the given MessageID.
-	filter := bson.M{"_id": *messageID}
+	filter := bson.M{"_id": messageID}
 
 	// Delete the articles with the given MessageID.
 	_, err := collection.DeleteMany(ctx, filter)
@@ -139,9 +139,9 @@ func DeleteArticlesByMessageID(ctx context.Context, collection *mongo.Collection
 
 // RetrieveArticleByMessageID retrieves an article from the MongoDB collection by its MessageID.
 // function written by AI.
-func RetrieveArticleByMessageID(ctx context.Context, collection *mongo.Collection, messageID *string) (*MongoArticle, error) {
+func RetrieveArticleByMessageID(ctx context.Context, collection *mongo.Collection, messageID string) (*MongoArticle, error) {
 	// Filter to find the article with the given MessageID.
-	filter := bson.M{"_id": *messageID}
+	filter := bson.M{"_id": messageID}
 
 	// Find the article in the collection.
 	result := collection.FindOne(ctx, filter)
@@ -150,7 +150,7 @@ func RetrieveArticleByMessageID(ctx context.Context, collection *mongo.Collectio
 	if result.Err() != nil {
 		// Check if the error is due to "no documents in result".
 		if result.Err() == mongo.ErrNoDocuments {
-			logf(DEBUG, "Info RetrieveArticleByMessageID not found messageID='%s'", *messageID)
+			logf(DEBUG, "Info RetrieveArticleByMessageID not found messageID='%s'", messageID)
 			return nil, nil
 		}
 		// Return other errors as they indicate a problem with the query.
@@ -169,7 +169,7 @@ func RetrieveArticleByMessageID(ctx context.Context, collection *mongo.Collectio
 
 // RetrieveArticlesByMessageIDs is a function that retrieves articles from the MongoDB collection based on a list of MessageIDes.
 // function written by AI.
-func RetrieveArticlesByMessageIDs(ctx context.Context, collection *mongo.Collection, messageIDs []*string) ([]*MongoArticle, error) {
+func RetrieveArticlesByMessageIDs(ctx context.Context, collection *mongo.Collection, messageIDs []string) ([]*MongoArticle, error) {
 	// Filter to find the articles with the given MessageIDes.
 	filter := bson.M{"_id": bson.M{"$in": messageIDs}}
 
@@ -183,7 +183,7 @@ func RetrieveArticlesByMessageIDs(ctx context.Context, collection *mongo.Collect
 
 	// Decode the articles from the BSON representation to MongoArticle objects.
 	var articles []*MongoArticle
-	var founds []*string
+	var founds []string
 	for cursor.Next(ctx) {
 		var article MongoArticle
 		if err := cursor.Decode(&article); err != nil {
@@ -195,8 +195,8 @@ func RetrieveArticlesByMessageIDs(ctx context.Context, collection *mongo.Collect
 		founds = append(founds, article.MessageID)
 	}
 	for _, messageID := range messageIDs {
-		if !isPStringInSlice(founds, messageID) {
-			logf(DEBUG, "RetrieveArticlesByMessageIDs notfound messageID='%s'", *messageID)
+		if !isStringInSlice(founds, messageID) {
+			logf(DEBUG, "RetrieveArticlesByMessageIDs notfound messageID='%s'", messageID)
 			article := &MongoArticle{}
 			article.MessageID = messageID
 			articles = append(articles, article)
@@ -212,9 +212,9 @@ func RetrieveArticlesByMessageIDs(ctx context.Context, collection *mongo.Collect
 
 // RetrieveHeadByMessageID is a function that retrieves the "Head" data of an article based on its MessageID.
 // function written by AI.
-func RetrieveHeadByMessageID(ctx context.Context, collection *mongo.Collection, messageID *string) (*[]byte, error) {
+func RetrieveHeadByMessageID(ctx context.Context, collection *mongo.Collection, messageID string) ([]byte, error) {
 	// Filter to find the article with the given "messageID".
-	filter := bson.M{"_id": *messageID}
+	filter := bson.M{"_id": messageID}
 
 	// Projection to select only the "Head" field.
 	projection := bson.M{"head": true, "hs": true, "enc": true}
@@ -243,9 +243,9 @@ func RetrieveHeadByMessageID(ctx context.Context, collection *mongo.Collection, 
 
 // RetrieveBodyByMessageID is a function that retrieves the "Body" data of an article  based on its MessageID.
 // function written by AI.
-func RetrieveBodyByMessageID(ctx context.Context, collection *mongo.Collection, messageID *string) (*[]byte, error) {
+func RetrieveBodyByMessageID(ctx context.Context, collection *mongo.Collection, messageID string) ([]byte, error) {
 	// Filter to find the article with the given "messageID".
-	filter := bson.M{"_id": *messageID}
+	filter := bson.M{"_id": messageID}
 
 	// Projection to select only the "Body" field.
 	projection := bson.M{"body": true, "bs": true, "enc": true}
@@ -274,7 +274,7 @@ func RetrieveBodyByMessageID(ctx context.Context, collection *mongo.Collection, 
 
 // CheckIfArticleExistsByMessageID checks if an article with the given MessageID exists in the MongoDB collection.
 // function written by AI.
-func CheckIfArticleExistsByMessageID(ctx context.Context, collection *mongo.Collection, messageID *string) (bool, error) {
+func CheckIfArticleExistsByMessageID(ctx context.Context, collection *mongo.Collection, messageID string) (bool, error) {
 	// Filter to find the articles with the given MessageID.
 
 	// This creates a projection document that specifies which fields should be included or excluded in the result.

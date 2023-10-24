@@ -104,9 +104,9 @@ forever:
 						ctx, cancel = ExtendContextTimeout(ctx, cancel, cfg.MongoTimeout)
 						if retbool, err := CheckIfArticleExistsByMessageID(ctx, collection, article.MessageID); retbool {
 							// The article with the given hash exists.
-							logf(DEBUG, "%s article exists: %s", who, *article.MessageID)
+							logf(DEBUG, "%s article exists: %s", who, article.MessageID)
 						} else if err != nil {
-							log.Printf("Error %s CheckIfArticleExistsByMessageID: %s err %v", who, *article.MessageID, err)
+							log.Printf("Error %s CheckIfArticleExistsByMessageID: %s err %v", who, article.MessageID, err)
 						}
 					}
 				}
@@ -216,7 +216,7 @@ func mongoWorker_Delete(wid int, wType *string, cfg *MongoStorageConfig) {
 	}
 	timeout := time.After(time.Millisecond * time.Duration(cfg.FlushTimer))
 	delrequests := []*MongoDelRequest{} // cache delete requests with a return channel set
-	delnoretchan := []*string{} // cache messageIDs without return chan
+	delnoretchan := []string{} // cache messageIDs without return chan
 	is_timeout := false
 	var diff int64
 	var last_delete int64
@@ -254,7 +254,7 @@ forever:
 					reboot = true
 				}
 				did += len(delnoretchan)
-				delnoretchan = []*string{}
+				delnoretchan = []string{}
 			}
 
 			// process requests with RetChan

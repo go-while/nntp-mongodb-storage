@@ -126,6 +126,15 @@ func isPStringInSlice(slice []*string, target *string) bool {
 	return false
 } // end func isPStringInSlice
 
+func isStringInSlice(slice []string, target string) bool {
+	for _, s := range slice {
+		if s == target {
+			return true
+		}
+	}
+	return false
+} // end func isStringInSlice
+
 // function written by AI.
 func EncodeToGob(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
@@ -139,7 +148,10 @@ func EncodeToGob(data []byte) ([]byte, error) {
 // CompressData is a function that takes an input byte slice 'input' and an integer 'algo' representing the compression algorithm.
 // It compresses the input data using the specified compression algorithm and returns the compressed data as a new byte slice.
 // function written by AI.
-func CompressData(input *[]byte, algo int , lvl int) (error, int) {
+func CompressData(inout []byte, algo int , lvl int) (error, int) {
+	if len(inout) == 0 {
+		return fmt.Errorf("Error CompressData in=0 algo=%d", algo), 0
+	}
 	if lvl < 0 {
 		lvl = 0
 	}
@@ -157,13 +169,13 @@ func CompressData(input *[]byte, algo int , lvl int) (error, int) {
 			log.Printf("Error CompressData gzip err='%v'", err)
 			return err, 0
 		}
-		zWriter.Write(*input)
+		zWriter.Write(inout)
 		zWriter.Flush()
 		zWriter.Close()
 		compressedData := buf.Bytes()
 		newsize = len(compressedData)
-		*input = nil
-		*input = compressedData
+		inout = nil
+		inout = compressedData
 
 	case ZLIB_enc:
 		var buf bytes.Buffer
@@ -172,13 +184,13 @@ func CompressData(input *[]byte, algo int , lvl int) (error, int) {
 			log.Printf("Error CompressData zlib err='%v'", err)
 			return err, 0
 		}
-		zWriter.Write(*input)
+		zWriter.Write(inout)
 		zWriter.Flush()
 		zWriter.Close()
 		compressedData := buf.Bytes()
 		newsize = len(compressedData)
-		*input = nil
-		*input = compressedData
+		inout = nil
+		inout = compressedData
 
 	case FLATE_enc:
 		var buf bytes.Buffer
@@ -187,12 +199,12 @@ func CompressData(input *[]byte, algo int , lvl int) (error, int) {
 			log.Printf("Error CompressData flate err='%v'", err)
 			return err, 0
 		}
-		flateWriter.Write(*input)
+		flateWriter.Write(inout)
 		flateWriter.Close()
 		compressedData := buf.Bytes()
 		newsize = len(compressedData)
-		*input = nil
-		*input = compressedData
+		inout = nil
+		inout = compressedData
 
 	default:
 		err = fmt.Errorf("unsupported compression algorithm: %d", algo)
@@ -203,12 +215,15 @@ func CompressData(input *[]byte, algo int , lvl int) (error, int) {
 // DecompressData is a function that takes an input byte slice 'input' and an integer 'algo' representing the compression algorithm.
 // It decompresses the input data using the specified compression algorithm and returns the decompressed data as a new byte slice.
 // function written by AI.
-func DecompressData(input *[]byte, algo int) error {
+func DecompressData(inout []byte, algo int) error {
+	if len(inout) == 0 {
+		return fmt.Errorf("Error DecompressData in=0 algo=%d", algo)
+	}
 	var err error
 	switch algo {
 
 	case GZIP_enc:
-		zReader, err := gzip.NewReader(bytes.NewReader(*input))
+		zReader, err := gzip.NewReader(bytes.NewReader(inout))
 		if err != nil {
 			return err
 		}
@@ -217,12 +232,12 @@ func DecompressData(input *[]byte, algo int) error {
 		if err != nil {
 			return err
 		}
-		*input = nil
-		*input = decompressed
+		inout = nil
+		inout = decompressed
 		//return ioutil.ReadAll(zReader) // returns a hidden error as 2nd return value
 
 	case ZLIB_enc:
-		zReader, err := zlib.NewReader(bytes.NewReader(*input))
+		zReader, err := zlib.NewReader(bytes.NewReader(inout))
 		if err != nil {
 			return err
 		}
@@ -231,26 +246,26 @@ func DecompressData(input *[]byte, algo int) error {
 		if err != nil {
 			return err
 		}
-		*input = nil
-		*input = decompressed
+		inout = nil
+		inout = decompressed
 		//return ioutil.ReadAll(zReader) // returns a hidden error as 2nd return value
 
 	case FLATE_enc:
-		flateReader := flate.NewReader(bytes.NewReader(*input))
+		flateReader := flate.NewReader(bytes.NewReader(inout))
 		defer flateReader.Close() // Ensure the reader is closed after use
 		decompressed, err := ioutil.ReadAll(flateReader)
 		if err != nil {
 			return err
 		}
-		*input = nil
-		*input = decompressed
+		inout = nil
+		inout = decompressed
 	default:
 		err = fmt.Errorf("unsupported compression algorithm: %d", algo)
 	}
 	return err
 } // end func DecompressData
 
-func Strings2Byte(format string, input []string) (*[]byte, int) {
+func Strings2Byte(format string, input []string) ([]byte, int) { // TODO dont return byte, give byte to func
 	var output []byte
 	var size int
 	switch format {
@@ -260,7 +275,7 @@ func Strings2Byte(format string, input []string) (*[]byte, int) {
 		output = []byte(strings.Join(input, LF)) // fileformat
 	}
 	size = len(output)
-	return &output, size
+	return output, size
 } // end func Strings2Byte
 
 func logf(DEBUG bool, format string, a ...any) {

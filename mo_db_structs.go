@@ -135,12 +135,12 @@ type MongoArticles struct {
 
 // MongoArticle represents an article stored in MongoDB.
 type MongoArticle struct {
-	MessageID     *string   `bson:"_id"`
-	Hash          *string   `bson:"hash"`
-	Newsgroups    []*string `bson:"newsgroups"`
-	Head          *[]byte   `bson:"head"`
+	MessageID     string   `bson:"_id"`
+	Hash          string   `bson:"hash"`
+	Newsgroups    []string `bson:"newsgroups"`
+	Head          []byte   `bson:"head"`
 	Headsize      int       `bson:"hs"`
-	Body          *[]byte   `bson:"body"`
+	Body          []byte   `bson:"body"`
 	Bodysize      int       `bson:"bs"`
 	Arrival       int64     `bson:"at"`
 	HeadDate      int64     `bson:"hd"`
@@ -150,14 +150,14 @@ type MongoArticle struct {
 
 // MongoGetRequest represents a read request for fetching articles from MongoDB.
 type MongoGetRequest struct {
-	MessageIDs []*string
+	MessageIDs  []string
 	STAT        bool
 	RetChan     chan []*MongoArticle
 } // end type MongoGetRequest struct
 
 // MongoDelRequest represents a delete request for deleting articles from MongoDB.
 type MongoDelRequest struct {
-	MessageIDs []*string
+	MessageIDs  []string
 	RetChan     chan int64
 } // end type MongoDelRequest struct
 
